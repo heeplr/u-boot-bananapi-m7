@@ -1,0 +1,37 @@
+default:
+  image: debian:bullseye-slim
+
+stages:
+  - build
+
+build rock-5b:
+  stage: build
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+    GIT_SUBMODULE_STRATEGY: normal
+    RKBIN_REPO_URL: https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/obbardc/rkbin.git
+  before_script:
+    - apt update
+    - apt install -y bc build-essential device-tree-compiler git python2 wget
+
+  script:
+    # download rkbin
+    - git clone --depth 1 -b master ${RKBIN_REPO_URL} $CI_PROJECT_DIR/../rkbin
+
+    # download compilers
+    - mkdir -p $CI_PROJECT_DIR/../prebuilts/gcc/linux-x86/arm && cd $CI_PROJECT_DIR/../prebuilts/gcc/linux-x86/arm
+    - wget https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf.tar.xz
+    - tar xf gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf.tar.xz
+
+    - mkdir -p $CI_PROJECT_DIR/../prebuilts/gcc/linux-x86/aarch64 && cd $CI_PROJECT_DIR/../prebuilts/gcc/linux-x86/aarch64
+    - wget https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/aarch64-linux-gnu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu.tar.xz
+    - tar xf gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu.tar.xz
+
+    # build
+    - cd $CI_PROJECT_DIR
+    - ./make.sh rock-5b-rk3588
+  artifacts:
+    paths:
+      - "*spl_loader*.bin"
+      - uboot.img
+
