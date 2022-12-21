@@ -30,8 +30,9 @@ build rock-5b:
     # build
     - cd $CI_PROJECT_DIR
     - ./make.sh rock-5b-rk3588
+    - ./make.sh --idblock
   artifacts:
     paths:
       - "*spl_loader*.bin"
       - uboot.img
-
+      - idblock.bin
