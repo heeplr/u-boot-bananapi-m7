@@ -119,7 +119,8 @@
 // TYPEC0_USB20 goes to USB-C port ()				- u2phy0_otg ?
 // TYPEC1_USB20 goes to USB3 port (bottom USB3 port?)
 
-// TODO check me out
+
+/* USB2 HUB */
 &usb_host0_ehci {
 	status = "okay";
 	u-boot,dm-pre-reloc;
@@ -131,7 +132,6 @@
 };
 
 // TODO check me out
-// TODO it crashes on boot
 &usb_host0_ohci {
 	status = "okay";
 	u-boot,dm-pre-reloc;
