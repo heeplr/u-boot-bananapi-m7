@@ -152,10 +152,19 @@
 &u2phy2 {
 	status = "okay";
 	u-boot,dm-pre-reloc;
+
+	// TODO is this needed ?
+	resets = <&cru SRST_OTGPHY_U2_0>, <&cru SRST_P_USB2PHY_U2_0_GRF0>;
+	reset-names = "phy", "apb";
+
+	// TODO is this needed ?
+	clock-output-names = "usb480m_phy2";
 };
 
 // TODO check me out
 &u2phy2_host {
 	status = "okay";
+	// TODO is this needed ?
+	phy-supply = <&vcc5v0_host>;
 	u-boot,dm-pre-reloc;
 };
