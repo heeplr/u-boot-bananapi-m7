@@ -1,3 +1,6 @@
+#define DEBUG
+#define LOG_DEBUG
+
 /*
  *	Based on LiMon - BOOTP.
  *
