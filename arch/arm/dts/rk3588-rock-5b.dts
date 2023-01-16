@@ -168,3 +168,53 @@
 	phy-supply = <&vcc5v0_host>;
 	u-boot,dm-pre-reloc;
 };
+
+
+/* USB20_HOST1 goes to top USB3 port */
+&usb_host1_ehci {
+	status = "okay";
+	u-boot,dm-pre-reloc;
+	clocks = <&cru HCLK_HOST1>, <&cru HCLK_HOST_ARB1>, <&u2phy3>;
+	clock-names = "usbhost", "arbiter", "utmi";
+	companion = <&usb_host1_ohci>;
+	phys = <&u2phy3_host>;
+	phy-names = "usb2-phy";
+};
+
+// TODO check me out
+&usb_host1_ohci {
+	status = "okay";
+	u-boot,dm-pre-reloc;
+	clocks = <&cru HCLK_HOST1>, <&cru HCLK_HOST_ARB1>, <&u2phy3>;
+	clock-names = "usbhost", "arbiter", "utmi";
+	phys = <&u2phy3_host>;
+	phy-names = "usb2-phy";
+};
+
+
+// TODO check me out
+&usb2phy3_grf {
+	status = "okay";
+	u-boot,dm-pre-reloc;
+};
+
+// TODO pre-alloc _first_ in all of these nodes
+// TODO check me out
+&u2phy3 {
+	status = "okay";
+	u-boot,dm-pre-reloc;
+
+	resets = <&cru SRST_OTGPHY_U2_1>, <&cru SRST_P_USB2PHY_U2_1_GRF0>;
+	reset-names = "phy", "apb";
+
+	// TODO is this needed ?
+	clock-output-names = "usb480m_phy3";
+};
+
+// TODO check me out
+&u2phy3_host {
+	status = "okay";
+	// TODO is this needed ?
+	phy-supply = <&vcc5v0_host>;
+	u-boot,dm-pre-reloc;
+};
