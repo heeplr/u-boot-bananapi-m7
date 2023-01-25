@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Edgeble AI Technologies Pvt. Ltd.
+ */
+
+#include "rockchip-u-boot.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	dmc {
+		compatible = "rockchip,rk3588-dmc";
+		u-boot,dm-pre-reloc;
+		status = "okay";
+	};
+
+	pmu1_grf: syscon@fd58a000 {
+		u-boot,dm-pre-reloc;
+		compatible = "rockchip,rk3588-pmu1-grf", "syscon";
+		reg = <0x0 0xfd58a000 0x0 0x2000>;
+	};
+
+	sdmmc: mmc@fe2c0000 {
+		compatible = "rockchip,rk3588-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xfe2c0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SDMMC_SAMPLE>, <&cru SCLK_SDMMC_DRV>,
+			 <&scmi_clk SCMI_HCLK_SD>, <&scmi_clk SCMI_CCLK_SD>;
+		clock-names = "ciu", "biu", "ciu-drive", "ciu-sample";
+		fifo-depth = <0x100>;
+		max-frequency = <200000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_det &sdmmc_bus4>;
+		status = "disabled";
+	};
+};
+
+&gpio0 {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&gpio1 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio2 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio3 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&gpio4 {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&scmi {
+	u-boot,dm-spl;
+};
+
+&scmi_clk {
+	u-boot,dm-spl;
+};
+
+&xin24m {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
+&cru {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&sys_grf {
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&uart2 {
+	clock-frequency = <24000000>;
+	u-boot,dm-spl;
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	u-boot,dm-spl;
+	mmc-hs200-1_8v;
+	non-removable;
+	status = "okay";
+};
+
+&ioc {
+	u-boot,dm-spl;
+};
