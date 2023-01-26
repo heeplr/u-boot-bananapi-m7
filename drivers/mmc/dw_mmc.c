@@ -17,6 +17,7 @@
 #include <wait_bit.h>
 #include <asm/cache.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <power/regulator.h>
 
 #define PAGE_SIZE 4096
@@ -418,6 +419,11 @@ static int dwmci_setup_bus(struct dwmci_host *host, u32 freq)
 		sclk = host->bus_hz;
 	else {
 		debug("%s: Didn't get source clock value.\n", __func__);
+		return -EINVAL;
+	}
+
+	if (IS_ERR_VALUE(sclk)) {
+		debug("%s: Invalid source clock value. sclk=%lu\n", __func__, sclk);
 		return -EINVAL;
 	}
 

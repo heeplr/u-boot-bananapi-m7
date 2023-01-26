@@ -47,7 +47,7 @@ static uint rockchip_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 		return 0;
 	}
 
-	return freq;
+	return clk_get_rate(&priv->clk);
 }
 
 static int rockchip_dwmmc_of_to_plat(struct udevice *dev)
@@ -124,8 +124,10 @@ static int rockchip_dwmmc_probe(struct udevice *dev)
 	priv->minmax[1] = dtplat->max_frequency;
 
 	ret = clk_get_by_phandle(dev, &dtplat->clocks[1], &priv->clk);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		host->bus_hz = 400000;  /* 400 kHz */
+		host->get_mmc_clk = NULL;
+	}
 #else
 	ret = clk_get_by_index(dev, 1, &priv->clk);
 	if (ret < 0)
