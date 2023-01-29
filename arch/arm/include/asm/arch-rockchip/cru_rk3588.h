@@ -11,7 +11,6 @@
 #define KHz		1000
 #define OSC_HZ		(24 * MHz)
 
-#define CPU_PVTPLL_HZ	(1008 * MHz)
 #define LPLL_HZ		(816 * MHz)
 #define GPLL_HZ		(1188 * MHz)
 #define CPLL_HZ		(1500 * MHz)
