@@ -7,6 +7,15 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	aliases {
+		mmc0 = &sdhci;
+		mmc1 = &sdmmc;
+	};
+
+	chosen {
+		u-boot,spl-boot-order = &sdhci, &sdmmc;
+	};
+
 	dmc {
 		compatible = "rockchip,rk3588-dmc";
 		u-boot,dm-pre-reloc;
@@ -22,10 +31,10 @@
 	sdmmc: mmc@fe2c0000 {
 		compatible = "rockchip,rk3588-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe2c0000 0x0 0x4000>;
-		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_SDMMC_SAMPLE>, <&cru SCLK_SDMMC_DRV>,
-			 <&scmi_clk SCMI_HCLK_SD>, <&scmi_clk SCMI_CCLK_SD>;
-		clock-names = "ciu", "biu", "ciu-drive", "ciu-sample";
+		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&scmi_clk SCMI_HCLK_SD>, <&scmi_clk SCMI_CCLK_SD>,
+			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
 		pinctrl-names = "default";
@@ -89,10 +98,12 @@
 };
 
 &sdhci {
-	bus-width = <8>;
 	u-boot,dm-spl;
-	mmc-hs200-1_8v;
-	non-removable;
+	status = "okay";
+};
+
+&sdmmc {
+	u-boot,dm-spl;
 	status = "okay";
 };
 
