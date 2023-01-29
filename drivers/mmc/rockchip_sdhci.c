@@ -62,6 +62,7 @@
 #define DWCMSHC_EMMC_DLL_RXCLK		0x804
 #define DWCMSHC_EMMC_DLL_TXCLK		0x808
 #define DWCMSHC_EMMC_DLL_STRBIN		0x80c
+#define DWCMSHC_EMMC_DLL_CMDOUT		0x810
 #define DWCMSHC_EMMC_DLL_STATUS0	0x840
 #define DWCMSHC_EMMC_DLL_STATUS1	0x844
 #define DWCMSHC_EMMC_DLL_START		BIT(0)
@@ -71,20 +72,32 @@
 #define DWCMSHC_EMMC_DLL_START_DEFAULT	5
 #define DWCMSHC_EMMC_DLL_INC_VALUE	2
 #define DWCMSHC_EMMC_DLL_INC		8
+#define DWCMSHC_EMMC_DLL_BYPASS		BIT(24)
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
 #define DLL_RXCLK_NO_INVERTER		BIT(29)
-#define DLL_TXCLK_TAPNUM_DEFAULT	0xA
+#define DLL_RXCLK_ORI_GATE		BIT(31)
+#define DLL_TXCLK_TAPNUM_DEFAULT	0x10
+#define DLL_TXCLK_TAPNUM_90_DEGREES	0xA
 #define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
+#define DLL_TXCLK_NO_INVERTER		BIT(29)
 #define DLL_STRBIN_TAPNUM_DEFAULT	0x8
 #define DLL_STRBIN_TAPNUM_FROM_SW	BIT(24)
 #define DLL_STRBIN_DELAY_NUM_SEL	BIT(26)
 #define DLL_STRBIN_DELAY_NUM_OFFSET	16
 #define DLL_STRBIN_DELAY_NUM_DEFAULT	0x16
+#define DLL_CMDOUT_TAPNUM_90_DEGREES	0x8
+#define DLL_CMDOUT_TAPNUM_FROM_SW	BIT(24)
+#define DLL_CMDOUT_SRC_CLK_NEG		BIT(28)
+#define DLL_CMDOUT_EN_SRC_CLK_NEG	BIT(29)
+#define DLL_CMDOUT_BOTH_CLK_EDGE	BIT(30)
 
 #define DLL_LOCK_WO_TMOUT(x) \
 	((((x) & DWCMSHC_EMMC_DLL_LOCKED) == DWCMSHC_EMMC_DLL_LOCKED) && \
 	(((x) & DWCMSHC_EMMC_DLL_TIMEOUT) == 0))
 #define ROCKCHIP_MAX_CLKS		3
+
+#define QUIRK_INVERTER_FLAG_IN_RXCLK	BIT(0)
+#define QUIRK_HAS_DLL_CMDOUT		BIT(1)
 
 struct rockchip_sdhc_plat {
 	struct mmc_config cfg;
@@ -103,6 +116,7 @@ struct rockchip_sdhc {
 	void *base;
 	struct rockchip_emmc_phy *phy;
 	struct clk emmc_clk;
+	u8 txclk_tapnum;
 };
 
 struct sdhci_data {
@@ -145,6 +159,8 @@ struct sdhci_data {
 	 * Return: 0 if successful, -ve on error
 	 */
 	int (*set_enhanced_strobe)(struct sdhci_host *host);
+
+	u32 quirks;
 };
 
 static void rk3399_emmc_phy_power_on(struct rockchip_emmc_phy *phy, u32 clock)
@@ -285,6 +301,8 @@ static int rk3399_sdhci_set_ios_post(struct sdhci_host *host)
 static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct rockchip_sdhc *priv = container_of(host, struct rockchip_sdhc, host);
+	struct sdhci_data *data = (struct sdhci_data *)dev_get_driver_data(priv->dev);
+	u8 txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
 	int val, ret;
 	u32 extra;
 
@@ -321,12 +339,33 @@ static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clo
 		if (ret)
 			return ret;
 
-		extra = DWCMSHC_EMMC_DLL_DLYENA | DLL_RXCLK_NO_INVERTER;
+		extra = DWCMSHC_EMMC_DLL_DLYENA | DLL_RXCLK_ORI_GATE;
+		if (data->quirks & QUIRK_INVERTER_FLAG_IN_RXCLK)
+			extra |= DLL_RXCLK_NO_INVERTER;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
+		if (host->mmc->selected_mode == MMC_HS_200 ||
+		    host->mmc->selected_mode == MMC_HS_400 ||
+		    host->mmc->selected_mode == MMC_HS_400_ES)
+			txclk_tapnum = priv->txclk_tapnum;
+
+		if ((data->quirks & QUIRK_HAS_DLL_CMDOUT) &&
+			(host->mmc->selected_mode == MMC_HS_400 ||
+			 host->mmc->selected_mode == MMC_HS_400_ES)) {
+			txclk_tapnum = DLL_TXCLK_TAPNUM_90_DEGREES;
+
+			extra = DLL_CMDOUT_SRC_CLK_NEG |
+				DLL_CMDOUT_BOTH_CLK_EDGE |
+				DWCMSHC_EMMC_DLL_DLYENA |
+				DLL_CMDOUT_TAPNUM_90_DEGREES |
+				DLL_CMDOUT_TAPNUM_FROM_SW;
+			sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CMDOUT);
+		}
+
 		extra = DWCMSHC_EMMC_DLL_DLYENA |
-			DLL_TXCLK_TAPNUM_DEFAULT |
-			DLL_TXCLK_TAPNUM_FROM_SW;
+			DLL_TXCLK_TAPNUM_FROM_SW |
+			DLL_TXCLK_NO_INVERTER |
+			txclk_tapnum;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
 		extra = DWCMSHC_EMMC_DLL_DLYENA |
@@ -340,9 +379,12 @@ static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clo
 		sdhci_writel(host, extra, DWCMSHC_EMMC_HOST_CTRL3);
 
 		/* reset the clock phase when the frequency is lower than 100MHz */
-		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
-		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
+		extra = DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START;
+		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CTRL);
+		sdhci_writel(host, DLL_RXCLK_ORI_GATE, DWCMSHC_EMMC_DLL_RXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
+		if (data->quirks & QUIRK_HAS_DLL_CMDOUT)
+			sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CMDOUT);
 		/*
 		 * Before switching to hs400es mode, the driver will enable
 		 * enhanced strobe first. PHY needs to configure the parameters
@@ -564,6 +606,9 @@ static int rockchip_sdhci_of_to_plat(struct udevice *dev)
 	if (ret)
 		return ret;
 
+	priv->txclk_tapnum = dev_read_u8_default(dev, "rockchip,txclk-tapnum",
+						 DLL_TXCLK_TAPNUM_DEFAULT);
+
 	return 0;
 }
 
@@ -585,6 +630,14 @@ static const struct sdhci_data rk3568_data = {
 	.get_phy = rk3568_emmc_get_phy,
 	.set_ios_post = rk3568_sdhci_set_ios_post,
 	.set_enhanced_strobe = rk3568_sdhci_set_enhanced_strobe,
+	.quirks = QUIRK_INVERTER_FLAG_IN_RXCLK,
+};
+
+static const struct sdhci_data rk3588_data = {
+	.get_phy = rk3568_emmc_get_phy,
+	.set_ios_post = rk3568_sdhci_set_ios_post,
+	.set_enhanced_strobe = rk3568_sdhci_set_enhanced_strobe,
+	.quirks = QUIRK_HAS_DLL_CMDOUT,
 };
 
 static const struct udevice_id sdhci_ids[] = {
@@ -595,6 +648,10 @@ static const struct udevice_id sdhci_ids[] = {
 	{
 		.compatible = "rockchip,rk3568-dwcmshc",
 		.data = (ulong)&rk3568_data,
+	},
+	{
+		.compatible = "rockchip,rk3588-dwcmshc",
+		.data = (ulong)&rk3588_data,
 	},
 	{ }
 };
