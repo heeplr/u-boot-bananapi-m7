@@ -28,6 +28,13 @@
 		reg = <0x0 0xfd58a000 0x0 0x2000>;
 	};
 
+	clk_sdmmc: sdmmc-clock {
+		u-boot,dm-spl;
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	sdmmc: mmc@fe2c0000 {
 		compatible = "rockchip,rk3588-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe2c0000 0x0 0x4000>;
@@ -104,6 +111,11 @@
 
 &sdmmc {
 	u-boot,dm-spl;
+	u-boot,spl-fifo-mode;
+	clocks = <&clk_sdmmc>, <&clk_sdmmc>,
+		 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+	clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+	max-frequency = <400000>;
 	status = "okay";
 };
 
