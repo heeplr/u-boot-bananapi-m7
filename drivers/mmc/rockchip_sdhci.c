@@ -51,9 +51,12 @@
 #define DWCMSHC_P_VENDOR_AREA1		0xe8
 #define DWCMSHC_AREA1_MASK		GENMASK(11, 0)
 /* Rockchip specific Registers */
+#define DWCMSHC_EMMC_HOST_CTRL3		0x508
+#define DWCMSHC_CMD_CONFLICT_CHECK	BIT(0)
 #define DWCMSHC_EMMC_EMMC_CTRL		0x52c
 #define DWCMSHC_CARD_IS_EMMC		BIT(0)
 #define DWCMSHC_ENHANCED_STROBE		BIT(8)
+#define DWCMSHC_EMMC_AT_CTRL		0x540
 #define DWCMSHC_EMMC_DLL_CTRL		0x800
 #define DWCMSHC_EMMC_DLL_CTRL_RESET	BIT(1)
 #define DWCMSHC_EMMC_DLL_RXCLK		0x804
@@ -103,7 +106,6 @@ struct rockchip_sdhc {
 };
 
 struct sdhci_data {
-	int (*emmc_phy_init)(struct udevice *dev);
 	int (*get_phy)(struct udevice *dev);
 
 	/**
@@ -144,11 +146,6 @@ struct sdhci_data {
 	 */
 	int (*set_enhanced_strobe)(struct sdhci_host *host);
 };
-
-static int rk3399_emmc_phy_init(struct udevice *dev)
-{
-	return 0;
-}
 
 static void rk3399_emmc_phy_power_on(struct rockchip_emmc_phy *phy, u32 clock)
 {
@@ -285,16 +282,6 @@ static int rk3399_sdhci_set_ios_post(struct sdhci_host *host)
 	return 0;
 }
 
-static int rk3568_emmc_phy_init(struct udevice *dev)
-{
-	struct rockchip_sdhc *prv = dev_get_priv(dev);
-	struct sdhci_host *host = &prv->host;
-
-	sdhci_writel(host, DLL_RXCLK_NO_INVERTER, DWCMSHC_EMMC_DLL_RXCLK);
-
-	return 0;
-}
-
 static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct rockchip_sdhc *priv = container_of(host, struct rockchip_sdhc, host);
@@ -308,11 +295,19 @@ static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clo
 
 	sdhci_set_clock(host->mmc, clock);
 
+	if (!clock)
+		return 0;
+
 	if (clock >= 100 * MHz) {
 		/* reset DLL */
 		sdhci_writel(host, DWCMSHC_EMMC_DLL_CTRL_RESET, DWCMSHC_EMMC_DLL_CTRL);
 		udelay(1);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
+
+		extra = 0x1 << 16 | /* tune clock stop en */
+			0x2 << 17 | /* pre-change delay */
+			0x3 << 19;  /* post-change delay */
+		sdhci_writel(host, extra, DWCMSHC_EMMC_AT_CTRL);
 
 		/* Init DLL settings */
 		extra = DWCMSHC_EMMC_DLL_START_DEFAULT << DWCMSHC_EMMC_DLL_START_POINT |
@@ -339,9 +334,14 @@ static int rk3568_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int clo
 			DLL_STRBIN_TAPNUM_FROM_SW;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
 	} else {
+		/* Disable cmd conflict check */
+		extra = sdhci_readl(host, DWCMSHC_EMMC_HOST_CTRL3);
+		extra &= ~DWCMSHC_CMD_CONFLICT_CHECK;
+		sdhci_writel(host, extra, DWCMSHC_EMMC_HOST_CTRL3);
+
 		/* reset the clock phase when the frequency is lower than 100MHz */
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
-		sdhci_writel(host, DLL_RXCLK_NO_INVERTER, DWCMSHC_EMMC_DLL_RXCLK);
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 		/*
 		 * Before switching to hs400es mode, the driver will enable
@@ -534,12 +534,6 @@ static int rockchip_sdhci_probe(struct udevice *dev)
 			return ret;
 	}
 
-	if (data->emmc_phy_init) {
-		ret = data->emmc_phy_init(dev);
-		if (ret)
-			return ret;
-	}
-
 	host->ops = &rockchip_sdhci_ops;
 	host->quirks = SDHCI_QUIRK_WAIT_SEND_CMD;
 
@@ -582,7 +576,6 @@ static int rockchip_sdhci_bind(struct udevice *dev)
 
 static const struct sdhci_data rk3399_data = {
 	.get_phy = rk3399_emmc_get_phy,
-	.emmc_phy_init = rk3399_emmc_phy_init,
 	.set_control_reg = rk3399_sdhci_set_control_reg,
 	.set_ios_post = rk3399_sdhci_set_ios_post,
 	.set_enhanced_strobe = rk3399_sdhci_set_enhanced_strobe,
@@ -590,7 +583,6 @@ static const struct sdhci_data rk3399_data = {
 
 static const struct sdhci_data rk3568_data = {
 	.get_phy = rk3568_emmc_get_phy,
-	.emmc_phy_init = rk3568_emmc_phy_init,
 	.set_ios_post = rk3568_sdhci_set_ios_post,
 	.set_enhanced_strobe = rk3568_sdhci_set_enhanced_strobe,
 };
