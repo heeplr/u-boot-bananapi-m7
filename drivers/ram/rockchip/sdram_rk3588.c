@@ -23,7 +23,8 @@ static int rk3588_dmc_probe(struct udevice *dev)
 	priv->pmugrf = syscon_get_first_range(ROCKCHIP_SYSCON_PMUGRF);
 	priv->info.base = CFG_SYS_SDRAM_BASE;
 	priv->info.size =
-		rockchip_sdram_size((phys_addr_t)&priv->pmugrf->os_reg[2]);
+		rockchip_sdram_size((phys_addr_t)&priv->pmugrf->os_reg[2]) +
+		rockchip_sdram_size((phys_addr_t)&priv->pmugrf->os_reg[4]);
 
 	return 0;
 }
