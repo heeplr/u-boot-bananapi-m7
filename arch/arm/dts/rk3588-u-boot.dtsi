@@ -111,7 +111,6 @@
 
 &sdmmc {
 	u-boot,dm-spl;
-	u-boot,spl-fifo-mode;
 	clocks = <&clk_sdmmc>, <&clk_sdmmc>,
 		 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 	clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
