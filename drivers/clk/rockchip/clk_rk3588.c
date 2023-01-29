@@ -1599,8 +1599,12 @@ static ulong rk3588_clk_get_rate(struct clk *clk)
 		break;
 #endif
 	default:
+		printf("%s(clk=%p): unknown clock id=%ld\n", __func__, clk, clk->id);
 		return -ENOENT;
 	}
+
+	if (IS_ERR_VALUE(rate))
+		printf("%s(clk=%p): error id=%ld rate=%lu\n", __func__, clk, clk->id, rate);
 
 	return rate;
 };
@@ -1749,8 +1753,12 @@ static ulong rk3588_clk_set_rate(struct clk *clk, ulong rate)
 		break;
 #endif
 	default:
+		printf("%s(clk=%p, rate=%lu): unknown clock id=%ld\n", __func__, clk, rate, clk->id);
 		return -ENOENT;
 	}
+
+	if (IS_ERR_VALUE(ret))
+		printf("%s(clk=%p, rate=%lu): error id=%ld ret=%lu\n", __func__, clk, rate, clk->id, ret);
 
 	return ret;
 };
