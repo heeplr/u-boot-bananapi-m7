@@ -81,7 +81,7 @@ __weak int rk_board_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_ROCKCHIP_SET_ETHADDR
+#if defined(CONFIG_ROCKCHIP_SET_ETHADDR) || defined(CONFIG_ROCKCHIP_SET_SN)
 /*
  * define serialno max length, the max length is 512 Bytes
  * The remaining bytes are used to ensure that the first 512 bytes
@@ -92,6 +92,10 @@ __weak int rk_board_init(void)
 #define CPUID_OFF	0x07
 
 #define MAX_ETHERNET	0x2
+
+#endif
+
+#ifdef CONFIG_ROCKCHIP_SET_ETHADDR
 
 static int rockchip_set_ethaddr(void)
 {
