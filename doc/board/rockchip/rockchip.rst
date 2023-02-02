@@ -88,6 +88,7 @@ List of mainline supported Rockchip boards:
      - Theobroma Systems RK3399-Q7 SoM - Puma (puma_rk3399)
 * rk3588
      - Edgeble Neural Compute Module 6 SoM - Neu6a (neu6a-io-r1126)
+     - Radxa ROCK 5B (rock5b-rk3588)
 * rv1108
      - Rockchip Evb-rv1108 (evb-rv1108)
      - Elgin-R1 (elgin-rv1108)
