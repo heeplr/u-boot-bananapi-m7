@@ -121,20 +121,20 @@ struct spl_info {
 };
 
 static struct spl_info spl_infos[] = {
-	{ "px30", "RK33", 0x2800, false, RK_HEADER_V1 },
-	{ "rk3036", "RK30", 0x1000, false, RK_HEADER_V1 },
+	{ "px30", "RK33", 0x4000 - 0x1000, false, RK_HEADER_V1 },
+	{ "rk3036", "RK30", 0x2000 - 0x1000, false, RK_HEADER_V1 },
 	{ "rk3066", "RK30", 0x8000 - 0x800, true, RK_HEADER_V1 },
-	{ "rk3128", "RK31", 0x1800, false, RK_HEADER_V1 },
+	{ "rk3128", "RK31", 0x2000 - 0x800, false, RK_HEADER_V1 },
 	{ "rk3188", "RK31", 0x8000 - 0x800, true, RK_HEADER_V1 },
 	{ "rk322x", "RK32", 0x8000 - 0x1000, false, RK_HEADER_V1 },
-	{ "rk3288", "RK32", 0x8000, false, RK_HEADER_V1 },
+	{ "rk3288", "RK32", 0x18000 - 0x1000, false, RK_HEADER_V1 },
 	{ "rk3308", "RK33", 0x40000 - 0x1000, false, RK_HEADER_V1 },
-	{ "rk3328", "RK32", 0x8000 - 0x1000, false, RK_HEADER_V1 },
-	{ "rk3368", "RK33", 0x8000 - 0x1000, false, RK_HEADER_V1 },
+	{ "rk3328", "RK32", 0x8000 - 0x800, false, RK_HEADER_V1 },
+	{ "rk3368", "RK33", 0x10000 - 0x1000, false, RK_HEADER_V1 },
 	{ "rk3399", "RK33", 0x30000 - 0x2000, false, RK_HEADER_V1 },
-	{ "rv1108", "RK11", 0x1800, false, RK_HEADER_V1 },
+	{ "rv1108", "RK11", 0x2000 - 0x800, false, RK_HEADER_V1 },
 	{ "rv1126", "110B", 0x10000 - 0x1000, false, RK_HEADER_V1 },
-	{ "rk3568", "RK35", 0x14000 - 0x1000, false, RK_HEADER_V2 },
+	{ "rk3568", "RK35", 0x10000 - 0x1000, false, RK_HEADER_V2 },
 	{ "rk3588", "RK35", 0x100000 - 0x1000, false, RK_HEADER_V2 },
 };
 
