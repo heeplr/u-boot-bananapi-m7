@@ -153,10 +153,12 @@ class Entry_mkimage(Entry):
         if self._multiple_data_files:
             fnames = []
             uniq = self.GetUniqueName()
-            for entry in self._mkimage_entries.values():
-                if not entry.ObtainContents(fake_size=fake_size):
+            for idx, entry in enumerate(self._mkimage_entries.values()):
+                entry_data, entry_fname, _ = self.collect_contents_to_file(
+                    [entry], 'mkimage-%s' % idx, fake_size)
+                if entry_data is None:
                     return False
-                fnames.append(tools.get_input_filename(entry.GetDefaultFilename()))
+                fnames.append(entry_fname)
             input_fname = ":".join(fnames)
         else:
             data, input_fname, uniq = self.collect_contents_to_file(
@@ -165,7 +167,7 @@ class Entry_mkimage(Entry):
                 return False
         if self._imagename:
             image_data, imagename_fname, _ = self.collect_contents_to_file(
-                [self._imagename], 'mkimage-n', 1024)
+                [self._imagename], 'mkimage-n', fake_size)
             if image_data is None:
                 return False
         outfile = self._filename if self._filename else 'mkimage-out.%s' % uniq
@@ -216,6 +218,20 @@ class Entry_mkimage(Entry):
         if self._imagename:
             self._imagename.SetAllowFakeBlob(allow_fake)
 
+    def CheckMissing(self, missing_list):
+        """Check if any entries in this section have missing external blobs
+
+        If there are missing (non-optional) blobs, the entries are added to the
+        list
+
+        Args:
+            missing_list: List of Entry objects to be added to
+        """
+        for entry in self._mkimage_entries.values():
+            entry.CheckMissing(missing_list)
+        if self._imagename:
+            self._imagename.CheckMissing(missing_list)
+
     def CheckFakedBlobs(self, faked_blobs_list):
         """Check if any entries in this section have faked external blobs
 
@@ -228,6 +244,19 @@ class Entry_mkimage(Entry):
             entry.CheckFakedBlobs(faked_blobs_list)
         if self._imagename:
             self._imagename.CheckFakedBlobs(faked_blobs_list)
+
+    def CheckOptional(self, optional_list):
+        """Check the section for missing but optional external blobs
+
+        If there are missing (optional) blobs, the entries are added to the list
+
+        Args:
+            optional_list (list): List of Entry objects to be added to
+        """
+        for entry in self._mkimage_entries.values():
+            entry.CheckOptional(optional_list)
+        if self._imagename:
+            self._imagename.CheckOptional(optional_list)
 
     def AddBintools(self, btools):
         super().AddBintools(btools)
