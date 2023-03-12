@@ -13,6 +13,7 @@
 #include <asm/types.h>
 #include <linux/clk-provider.h>
 
+#if CONFIG_IS_ENABLED(FIRMWARE)
 /**
  * struct scmi_clk_priv - Private data for SCMI clocks
  * @channel: Reference to the SCMI channel to use
@@ -207,3 +208,4 @@ U_BOOT_DRIVER(scmi_clock) = {
 	.probe = scmi_clk_probe,
 	.priv_auto = sizeof(struct scmi_clk_priv *),
 };
+#endif
