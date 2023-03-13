@@ -124,11 +124,29 @@
 };
 
 &pinctrl {
+	u-boot,dm-spl;
+
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&sdmmc_bus4 {
+	u-boot,dm-spl;
+};
+
+&sdmmc_clk {
+	u-boot,dm-spl;
+};
+
+&sdmmc_cmd {
+	u-boot,dm-spl;
+};
+
+&sdmmc_det {
+	u-boot,dm-spl;
 };
 
 &usb_host0_ehci {
