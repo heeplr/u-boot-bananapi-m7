@@ -13,6 +13,7 @@ struct regulator_common_plat {
 	struct gpio_desc gpio; /* GPIO for regulator enable control */
 	unsigned int startup_delay_us;
 	unsigned int off_on_delay_us;
+	unsigned int enable_count;
 };
 
 int regulator_common_of_to_plat(struct udevice *dev,
