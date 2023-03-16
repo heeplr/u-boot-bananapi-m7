@@ -507,23 +507,6 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 	return 0;
 }
 
-static int rockchip_usb2phy_power_off(struct phy *phy)
-{
-	struct udevice *vbus = NULL;
-	int ret;
-
-	vbus = rockchip_usb2phy_check_vbus(phy);
-	if (vbus) {
-		ret = regulator_set_enable(vbus, false);
-		if (ret) {
-			pr_err("%s: Failed to set VBus supply\n", __func__);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int rockchip_usb2phy_of_xlate(struct phy *phy,
 				     struct ofnode_phandle_args *args)
 {
@@ -850,7 +833,6 @@ static struct phy_ops rockchip_usb2phy_ops = {
 	.init = rockchip_usb2phy_init,
 	.exit = rockchip_usb2phy_exit,
 	.power_on = rockchip_usb2phy_power_on,
-	.power_off = rockchip_usb2phy_power_off,
 	.of_xlate = rockchip_usb2phy_of_xlate,
 };
 
