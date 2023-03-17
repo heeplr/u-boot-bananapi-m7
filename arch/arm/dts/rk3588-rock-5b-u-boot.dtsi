@@ -119,7 +119,6 @@
 
 &sdmmc {
 	bus-width = <4>;
-	u-boot,dm-spl;
 	status = "okay";
 };
 
