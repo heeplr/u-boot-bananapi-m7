@@ -185,6 +185,15 @@ To build rk3568 boards:
         make evb-rk3568_defconfig
         make CROSS_COMPILE=aarch64-linux-gnu-
 
+To build rk3588 boards:
+
+.. code-block:: bash
+
+        export BL31=../rkbin/bin/rk35/rk3588_bl31_v1.27.elf
+        export ROCKCHIP_TPL=../rkbin/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2736MHz_v1.08.bin
+        make rock5b-rk3588_defconfig
+        make CROSS_COMPILE=aarch64-linux-gnu-
+
 Flashing
 --------
 
