@@ -15,6 +15,7 @@
 
 	chosen {
 		u-boot,spl-boot-order = "same-as-spl", &sdmmc;
+		u-boot,spl-boot-order = "same-as-spl", &sdmmc, &flash0;
 	};
 
 	vcc5v0_host: vcc5v0-host-regulator {
@@ -28,6 +29,10 @@
 		pinctrl-0 = <&vcc5v0_host_en>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+};
+
+&fspim2_pins {
+	bootph-all;
 };
 
 &sdmmc {
@@ -135,7 +140,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	flash@0 {
+	flash0: flash@0 {
 		bootph-all;
 		compatible = "jedec,spi-nor";
 		reg = <0>;
