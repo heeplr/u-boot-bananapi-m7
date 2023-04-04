@@ -12,6 +12,7 @@
 #include <dm/devres.h>
 #include <generic-phy.h>
 #include <linux/list.h>
+#include <power/regulator.h>
 
 /**
  * struct phy_counts - Init and power-on counts of a single PHY port
@@ -29,12 +30,14 @@
  *              without a matching generic_phy_exit() afterwards
  * @list: Handle for a linked list of these structures corresponding to
  *        ports of the same PHY provider
+ * @supply: Handle to a phy-supply device
  */
 struct phy_counts {
 	unsigned long id;
 	int power_on_count;
 	int init_count;
 	struct list_head list;
+	struct udevice *supply;
 };
 
 static inline struct phy_ops *phy_dev_ops(struct udevice *dev)
@@ -224,6 +227,12 @@ int generic_phy_init(struct phy *phy)
 		return 0;
 	}
 
+#if CONFIG_IS_ENABLED(DM_REGULATOR)
+	device_get_supply_regulator(phy->dev, "phy-supply", &counts->supply);
+	if (IS_ERR(counts->supply))
+		dev_dbg(phy->dev, "no phy-supply property found\n");
+#endif
+
 	ret = ops->init(phy);
 	if (ret)
 		dev_err(phy->dev, "PHY: Failed to init %s: %d.\n",
@@ -272,6 +281,12 @@ int generic_phy_exit(struct phy *phy)
 		return 0;
 	}
 
+#if CONFIG_IS_ENABLED(DM_REGULATOR)
+	if (!IS_ERR_OR_NULL(counts->supply)) {
+		ret = regulator_set_enable(counts->supply, false);
+		dev_dbg(phy->dev, "supply disable status: %d\n", ret);
+	}
+#endif
 	ret = ops->exit(phy);
 	if (ret)
 		dev_err(phy->dev, "PHY: Failed to exit %s: %d.\n",
@@ -299,6 +314,13 @@ int generic_phy_power_on(struct phy *phy)
 		counts->power_on_count++;
 		return 0;
 	}
+
+#if CONFIG_IS_ENABLED(DM_REGULATOR)
+	if (!IS_ERR_OR_NULL(counts->supply)) {
+		ret = regulator_set_enable(counts->supply, true);
+		dev_dbg(phy->dev, "supply enable status: %d\n", ret);
+	}
+#endif
 
 	ret = ops->power_on(phy);
 	if (ret)
