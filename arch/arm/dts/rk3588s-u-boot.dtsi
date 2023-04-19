@@ -117,9 +117,10 @@
 		bus-range = <0x40 0x4f>;
 		clocks = <&cru ACLK_PCIE_1L2_MSTR>, <&cru ACLK_PCIE_1L2_SLV>,
 			 <&cru ACLK_PCIE_1L2_DBI>, <&cru PCLK_PCIE_1L2>,
-			 <&cru CLK_PCIE_AUX4>;
+			 <&cru CLK_PCIE_AUX4>, <&cru CLK_PCIE1L2_PIPE>;
 		clock-names = "aclk_mst", "aclk_slv",
-			      "aclk_dbi", "pclk", "aux";
+			      "aclk_dbi", "pclk",
+			      "aux", "pipe";
 		device_type = "pci";
 		interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH 0>,
 			     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -136,21 +137,23 @@
 		linux,pci-domain = <4>;
 		num-ib-windows = <8>;
 		num-ob-windows = <8>;
+		num-viewport = <4>;
 		max-link-speed = <2>;
 		msi-map = <0x4000 &gic 0x4000 0x1000>;
 		num-lanes = <1>;
 		phys = <&combphy0_ps PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
-		power-domains = <&power RK3588_PD_PHP>;
-		ranges = <0x00000800 0x0 0xf4000000 0x0 0xf4000000 0x0 0x100000
-			  0x81000000 0x0 0xf4100000 0x0 0xf4100000 0x0 0x100000
-			  0x82000000 0x0 0xf4200000 0x0 0xf4200000 0x0 0xe00000
-			  0xc3000000 0xa 0x00000000 0xa 0x00000000 0x0 0x40000000>;
-		reg = <0xa 0x41000000 0x0 0x400000>,
-		      <0x0 0xfe190000 0x0 0x10000>;
-		reg-names = "pcie-dbi", "pcie-apb";
-		resets = <&cru SRST_PCIE4_POWER_UP>;
-		reset-names = "pipe";
+		power-domains = <&power RK3588_PD_PCIE>;
+		ranges = <0x01000000 0x0 0xf4100000 0x0 0xf4100000 0x0 0x00100000>,
+			 <0x02000000 0x0 0xf4200000 0x0 0xf4200000 0x0 0x00e00000>,
+			 <0x03000000 0x0 0x40000000 0xa 0x00000000 0x0 0x40000000>;
+		reg = <0xa 0x41000000 0x0 0x00400000>,
+		      <0x0 0xfe190000 0x0 0x00010000>,
+		      <0x0 0xf4000000 0x0 0x00100000>;
+		reg-names = "dbi", "apb", "config";
+		resets = <&cru SRST_PCIE4_POWER_UP>, <&cru SRST_P_PCIE4>;
+		reset-names = "pcie", "periph";
+		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
 		pcie2x1l2_intc: legacy-interrupt-controller {
@@ -191,8 +194,9 @@
 		compatible = "rockchip,rk3588-naneng-combphy";
 		reg = <0x0 0xfee00000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&cru CLK_REF_PIPE_PHY0>, <&cru PCLK_PCIE_COMBO_PIPE_PHY0>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&cru CLK_REF_PIPE_PHY0>, <&cru PCLK_PCIE_COMBO_PIPE_PHY0>,
+			 <&cru PCLK_PHP_ROOT>;
+		clock-names = "refclk", "apbclk", "phpclk";
 		assigned-clocks = <&cru CLK_REF_PIPE_PHY0>;
 		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_P_PCIE2_PHY0>, <&cru SRST_REF_PIPE_PHY0>;
