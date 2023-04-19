@@ -352,7 +352,6 @@ err_exit_phy:
 static int rockchip_pcie_parse_dt(struct udevice *dev)
 {
 	struct rk_pcie *priv = dev_get_priv(dev);
-	u32 max_link_speed;
 	int ret;
 
 	priv->dw.dbi_base = (void *)dev_read_addr_index(dev, 0);
@@ -399,12 +398,8 @@ static int rockchip_pcie_parse_dt(struct udevice *dev)
 		goto rockchip_pcie_parse_dt_err_phy_get_by_index;
 	}
 
-	ret = ofnode_read_u32(dev_ofnode(dev), "max-link-speed",
-			      &max_link_speed);
-	if (ret < 0 || max_link_speed > 4)
-		priv->gen = LINK_SPEED_GEN_3;
-	else
-		priv->gen = max_link_speed;
+	priv->gen = dev_read_u32_default(dev, "max-link-speed",
+					 LINK_SPEED_GEN_3);
 
 	return 0;
 
