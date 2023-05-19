@@ -40,4 +40,5 @@ build rock-5b:
       - u-boot.itb
       - idbloader.img
       - u-boot-rockchip.bin
+      - u-boot-rockchip-spi.bin
       - rock5b-rk3588.bin
