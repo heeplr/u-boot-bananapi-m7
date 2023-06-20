@@ -221,10 +221,12 @@
 };
 
 &u2phy0 {
+	bootph-all;
 	status = "okay";
 };
 
 &u2phy0_otg {
+	bootph-all;
 	rockchip,typec-vbus-det;
 	status = "okay";
 };
@@ -271,6 +273,7 @@
 };
 
 &usbdp_phy0 {
+	bootph-all;
 	orientation-switch;
 	svid = <0xff01>;
 	sbu1-dc-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -293,14 +296,17 @@
 };
 
 &usbdp_phy0_u3 {
+	bootph-all;
 	status = "okay";
 };
 
 &usbdrd3_0 {
+	bootph-all;
 	status = "okay";
 };
 
 &usbdrd_dwc3_0 {
+	bootph-all;
 	dr_mode = "otg";
 	usb-role-switch;
 
