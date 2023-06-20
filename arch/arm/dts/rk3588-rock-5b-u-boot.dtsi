@@ -61,30 +61,37 @@
 };
 
 &u2phy0 {
+	bootph-all;
 	status = "okay";
 };
 
 &u2phy0_otg {
+	bootph-all;
 	status = "okay";
 };
 
 &u2phy1 {
+	bootph-all;
 	status = "okay";
 };
 
 &u2phy1_otg {
+	bootph-all;
 	status = "okay";
 };
 
 &usbdp_phy1 {
+	bootph-all;
 	status = "okay";
 };
 
 &usbdp_phy1_u3 {
+	bootph-all;
 	status = "okay";
 };
 
 &usbdp_phy0 {
+	bootph-all;
 	orientation-switch;
 	mode-switch;
 	sbu1-dc-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -108,10 +115,12 @@
 };
 
 &usbdp_phy0_u3 {
+	bootph-all;
 	status = "okay";
 };
 
 &usb_host0_xhci {
+	bootph-all;
 	usb-role-switch;
 	status = "okay";
 
@@ -126,10 +135,12 @@
 };
 
 &usb_host1_xhci {
+	bootph-all;
 	status = "okay";
 };
 
 &usb_host2_xhci {
+	bootph-all;
 	status = "okay";
 };
 
