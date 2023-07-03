@@ -33,7 +33,7 @@ build rock-5b:
     # build
     - cd $CI_PROJECT_DIR
     - make rock5b-rk3588_defconfig
-    - make
+    - make -j$(nproc)
     - ../rkbin/tools/boot_merger rock5b-rk3588.ini
 
     # build proprietary usb loader
