@@ -35,6 +35,12 @@ build rock-5b:
     - make rock5b-rk3588_defconfig
     - make
     - ../rkbin/tools/boot_merger rock5b-rk3588.ini
+
+    # build proprietary usb loader
+    # the directory-dance here is because boot_merger shipped in rkbin
+    # doesn't seem to support the "--prepath" option which is available in
+    # downstream U-Boot.
+    - cd ../rkbin && ./tools/boot_merger RKBOOT/RK3588MINIALL.ini && mv *spl_loader*.bin ../u-boot/
   artifacts:
     paths:
       - u-boot.itb
@@ -42,4 +48,4 @@ build rock-5b:
       - u-boot-rockchip.bin
       - u-boot-rockchip-spi.bin
       - rock5b-rk3588.bin
-      - rk3588_spl_loader_v1.08.111.bin
+      - rk3588_spl_loader_*.bin
