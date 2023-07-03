@@ -9,7 +9,7 @@ build rock-5b:
   variables:
     DEBIAN_FRONTEND: noninteractive
     GIT_SUBMODULE_STRATEGY: normal
-    RKBIN_REPO_URL: https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/obbardc/rkbin.git
+    RKBIN_REPO_URL: https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/hardware-enablement/rockchip-3588/rkbin.git
   before_script:
     - apt update
     - apt install -y bc build-essential device-tree-compiler git python3 wget bison flex python3-setuptools swig python3-dev libssl-dev python3-pyelftools
