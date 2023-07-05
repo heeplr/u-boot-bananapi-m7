@@ -24,6 +24,7 @@
 #include <asm/arch-rockchip/grf_rk3328.h>
 #include <asm/arch-rockchip/grf_rk3368.h>
 #include <asm/arch-rockchip/grf_rk3399.h>
+#include <asm/arch-rockchip/grf_rk3568.h>
 #include <asm/arch-rockchip/grf_rv1108.h>
 #include <dm/pinctrl.h>
 #include <dt-bindings/clock/rk3288-cru.h>
@@ -45,6 +46,7 @@ struct gmac_rockchip_plat {
 	bool clock_input;
 	int tx_delay;
 	int rx_delay;
+	int bus_id;
 };
 
 struct rk_gmac_ops {
@@ -345,6 +347,40 @@ static int rv1108_set_rmii_speed(struct dw_eth_dev *priv)
 	return 0;
 }
 
+static int rk3568_set_rgmii_speed(struct dw_eth_dev *priv)
+{
+	struct clk clk_speed;
+	int ret;
+
+	ret = clk_get_by_name(priv->phydev->dev, "clk_mac_speed",
+			      &clk_speed);
+	if (ret)
+		return ret;
+
+	switch (priv->phydev->speed) {
+	case 10:
+		ret = clk_set_rate(&clk_speed, 2500000);
+		if (ret)
+			return ret;
+		break;
+	case 100:
+		ret = clk_set_rate(&clk_speed, 25000000);
+		if (ret)
+			return ret;
+		break;
+	case 1000:
+		ret = clk_set_rate(&clk_speed, 125000000);
+		if (ret)
+			return ret;
+		break;
+	default:
+		debug("Unknown phy speed: %d\n", priv->phydev->speed);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void px30_gmac_set_to_rmii(struct gmac_rockchip_plat *pdata)
 {
 	struct px30_grf *grf;
@@ -554,6 +590,81 @@ static void rv1108_gmac_set_to_rmii(struct gmac_rockchip_plat *pdata)
 		     RV1108_GMAC_PHY_INTF_SEL_RMII);
 }
 
+static void rk3568_set_to_rmii(struct gmac_rockchip_plat *pdata)
+{
+	struct rk3568_grf *grf;
+	void *con1;
+
+	enum {
+		RK3568_GMAC_PHY_INTF_SEL_SHIFT = 4,
+		RK3568_GMAC_PHY_INTF_SEL_MASK = GENMASK(6, 4),
+		RK3568_GMAC_PHY_INTF_SEL_RMII = BIT(6),
+	};
+
+	grf = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
+
+	if (pdata->bus_id == 1)
+		con1 = &grf->mac1_con1;
+	else
+		con1 = &grf->mac0_con1;
+
+	rk_clrsetreg(con1,
+		     RK3568_GMAC_PHY_INTF_SEL_MASK,
+		     RK3568_GMAC_PHY_INTF_SEL_RMII);
+}
+
+static void rk3568_set_to_rgmii(struct gmac_rockchip_plat *pdata)
+{
+	struct rk3568_grf *grf;
+	void *con0, *con1;
+
+	enum {
+		RK3568_GMAC_PHY_INTF_SEL_SHIFT = 4,
+		RK3568_GMAC_PHY_INTF_SEL_MASK = GENMASK(6, 4),
+		RK3568_GMAC_PHY_INTF_SEL_RGMII = BIT(4),
+
+		RK3568_RXCLK_DLY_ENA_GMAC_MASK = BIT(1),
+		RK3568_RXCLK_DLY_ENA_GMAC_DISABLE = 0,
+		RK3568_RXCLK_DLY_ENA_GMAC_ENABLE = BIT(1),
+
+		RK3568_TXCLK_DLY_ENA_GMAC_MASK = BIT(0),
+		RK3568_TXCLK_DLY_ENA_GMAC_DISABLE = 0,
+		RK3568_TXCLK_DLY_ENA_GMAC_ENABLE = BIT(0),
+	};
+
+	enum {
+		RK3568_CLK_RX_DL_CFG_GMAC_SHIFT = 0x8,
+		RK3568_CLK_RX_DL_CFG_GMAC_MASK = GENMASK(15, 8),
+
+		RK3568_CLK_TX_DL_CFG_GMAC_SHIFT = 0x0,
+		RK3568_CLK_TX_DL_CFG_GMAC_MASK = GENMASK(7, 0),
+	};
+
+	grf = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
+
+	if (pdata->bus_id == 1) {
+		con0 = &grf->mac1_con0;
+		con1 = &grf->mac1_con1;
+	} else {
+		con0 = &grf->mac0_con0;
+		con1 = &grf->mac0_con1;
+	}
+
+	rk_clrsetreg(con0,
+		     RK3568_CLK_RX_DL_CFG_GMAC_MASK |
+		     RK3568_CLK_TX_DL_CFG_GMAC_MASK,
+		     pdata->rx_delay << RK3568_CLK_RX_DL_CFG_GMAC_SHIFT |
+		     pdata->tx_delay << RK3568_CLK_TX_DL_CFG_GMAC_SHIFT);
+
+	rk_clrsetreg(con1,
+		     RK3568_TXCLK_DLY_ENA_GMAC_MASK |
+		     RK3568_RXCLK_DLY_ENA_GMAC_MASK |
+		     RK3568_GMAC_PHY_INTF_SEL_MASK,
+		     RK3568_TXCLK_DLY_ENA_GMAC_ENABLE |
+		     RK3568_RXCLK_DLY_ENA_GMAC_ENABLE |
+		     RK3568_GMAC_PHY_INTF_SEL_RGMII);
+}
+
 static int gmac_rockchip_probe(struct udevice *dev)
 {
 	struct gmac_rockchip_plat *pdata = dev_get_plat(dev);
@@ -565,6 +676,7 @@ static int gmac_rockchip_probe(struct udevice *dev)
 	ulong rate;
 	int ret;
 
+//	pdata->bus_id = dev->seq;
 	ret = clk_set_defaults(dev, CLK_DEFAULTS_PRE);
 	if (ret)
 		debug("%s clk_set_defaults failed %d\n", __func__, ret);
@@ -733,6 +845,12 @@ const struct rk_gmac_ops rv1108_gmac_ops = {
 	.set_to_rmii = rv1108_gmac_set_to_rmii,
 };
 
+const struct rk_gmac_ops rk3568_gmac_ops = {
+	.fix_mac_speed = rk3568_set_rgmii_speed,
+	.set_to_rgmii = rk3568_set_to_rgmii,
+	.set_to_rmii = rk3568_set_to_rmii,
+};
+
 static const struct udevice_id rockchip_gmac_ids[] = {
 	{ .compatible = "rockchip,px30-gmac",
 	  .data = (ulong)&px30_gmac_ops },
@@ -750,6 +868,8 @@ static const struct udevice_id rockchip_gmac_ids[] = {
 	  .data = (ulong)&rk3399_gmac_ops },
 	{ .compatible = "rockchip,rv1108-gmac",
 	  .data = (ulong)&rv1108_gmac_ops },
+	{ .compatible = "rockchip,rk3568-gmac",
+	  .data = (ulong)&rk3568_gmac_ops },
 	{ }
 };
 
