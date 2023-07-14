@@ -3,8 +3,8 @@
  * Copyright 2020 NXP
  */
 
+#define DEBUG
 #define LOG_CATEGORY UCLASS_ETH_PHY
-
 #include <common.h>
 #include <dm.h>
 #include <log.h>
@@ -96,7 +96,7 @@ struct mii_dev *eth_phy_get_mdio_bus(struct udevice *eth_dev)
 			 */
 			uc_priv = (struct eth_phy_device_priv *)(dev_get_uclass_priv(phy_dev));
 			if (uc_priv->mdio_bus)
-				log_notice("Get shared mii bus on %s\n", eth_dev->name);
+				printf("Get shared mii bus on %s\n", eth_dev->name);
 			else
 				log_notice("Can't get shared mii bus on %s\n", eth_dev->name);
 
@@ -151,7 +151,7 @@ void eth_phy_reset(struct udevice *dev, int value)
 {
 	struct eth_phy_device_priv *uc_priv = dev_get_uclass_priv(dev);
 	u32 delay;
-
+printf("eth_phy_reset\n");
 	if (!CONFIG_IS_ENABLED(DM_GPIO))
 		return;
 

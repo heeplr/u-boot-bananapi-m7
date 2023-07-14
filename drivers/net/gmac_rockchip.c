@@ -4,7 +4,7 @@
  *
  * Rockchip GMAC ethernet IP driver for U-Boot
  */
-
+#define DEBUG
 #include <common.h>
 #include <dm.h>
 #include <clk.h>
@@ -349,6 +349,57 @@ static int rv1108_set_rmii_speed(struct dw_eth_dev *priv)
 	return 0;
 }
 
+static int rk3588_set_rgmii_speed(struct dw_eth_dev *priv)
+{
+	struct rk3588_php_grf *php_grf;
+	unsigned int div, div_mask;
+
+	enum {
+		RK3588_GMAC_CLK_RGMII_DIV_SHIFT = 2,
+		RK3588_GMAC_CLK_RGMII_DIV_MASK = GENMASK(3, 2),
+		RK3588_GMAC_CLK_RGMII_DIV1 = 0,
+		RK3588_GMAC_CLK_RGMII_DIV5 = GENMASK(3, 2),
+		RK3588_GMAC_CLK_RGMII_DIV50 = BIT(3),
+		RK3588_GMA_CLK_RMII_DIV2 = BIT(2),
+		RK3588_GMAC_CLK_RMII_DIV20 = 0,
+	};
+
+	php_grf = syscon_get_first_range(ROCKCHIP_SYSCON_PHP_GRF);
+
+	switch (priv->phydev->speed) {
+	case 10:
+		if (priv->phydev->interface == PHY_INTERFACE_MODE_RMII)
+			div = RK3588_GMAC_CLK_RMII_DIV20;
+		else
+			div = RK3588_GMAC_CLK_RGMII_DIV50;
+		break;
+	case 100:
+		if (priv->phydev->interface == PHY_INTERFACE_MODE_RMII)
+			div = RK3588_GMA_CLK_RMII_DIV2;
+		else
+			div = RK3588_GMAC_CLK_RGMII_DIV5;
+		break;
+	case 1000:
+		if (priv->phydev->interface != PHY_INTERFACE_MODE_RMII)
+			div = RK3588_GMAC_CLK_RGMII_DIV1;
+		else
+			return -EINVAL;
+		break;
+	default:
+		debug("Unknown phy speed: %d\n", priv->phydev->speed);
+		return -EINVAL;
+	}
+
+//	if (priv->bus_id == 1) {
+		div <<= 5;
+		div_mask = RK3588_GMAC_CLK_RGMII_DIV_MASK << 5;
+//	}
+
+	rk_clrsetreg(&php_grf->clk_con1, div_mask, div);
+
+	return 0;
+}
+
 static int rk3568_set_rgmii_speed(struct dw_eth_dev *priv)
 {
 	struct clk clk_speed;
@@ -673,6 +724,7 @@ static void rk3588_set_to_rmii(struct gmac_rockchip_plat *pdata)
 	unsigned int clk_mode, clk_mode_mask;
 	struct rk3588_php_grf *php_grf;
 
+printf("set to rmii\n");
 	enum {
 		RK3588_GMAC_PHY_INTF_SEL_SHIFT = 3,
 		RK3588_GMAC_PHY_INTF_SEL_MASK = GENMASK(5, 3),
@@ -712,7 +764,7 @@ static void rk3588_set_to_rgmii(struct gmac_rockchip_plat *pdata)
 	struct rk3588_php_grf *php_grf;
 	struct rk3588_sys_grf *grf;
 	void *offset_con;
-
+printf("set to rgmii\n");
 	enum {
 		RK3588_GMAC_PHY_INTF_SEL_SHIFT = 3,
 		RK3588_GMAC_PHY_INTF_SEL_MASK = GENMASK(5, 3),
@@ -786,108 +838,22 @@ static void rk3588_set_to_rgmii(struct gmac_rockchip_plat *pdata)
 	rk_clrsetreg(&php_grf->clk_con1, clk_mode_mask, clk_mode);
 }
 
-static void rv1126_set_to_rmii(struct gmac_rockchip_platdata *pdata)
-{
-	struct rv1126_grf *grf;
-
-	enum {
-		RV1126_GMAC_PHY_INTF_SEL_SHIFT = 4,
-		RV1126_GMAC_PHY_INTF_SEL_MASK  = GENMASK(6, 4),
-		RV1126_GMAC_PHY_INTF_SEL_RMII = BIT(6),
-	};
-
-	grf = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
-
-	rk_clrsetreg(&grf->mac_con0,
-		     RV1126_GMAC_PHY_INTF_SEL_MASK,
-		     RV1126_GMAC_PHY_INTF_SEL_RMII);
-}
-
-static void rv1126_set_to_rgmii(struct gmac_rockchip_platdata *pdata)
-{
-	struct rv1126_grf *grf;
-
-	enum {
-		RV1126_GMAC_PHY_INTF_SEL_SHIFT = 4,
-		RV1126_GMAC_PHY_INTF_SEL_MASK  = GENMASK(6, 4),
-		RV1126_GMAC_PHY_INTF_SEL_RGMII = BIT(4),
-
-		RV1126_RXCLK_M1_DLY_ENA_GMAC_MASK = BIT(3),
-		RV1126_RXCLK_M1_DLY_ENA_GMAC_DISABLE = 0,
-		RV1126_RXCLK_M1_DLY_ENA_GMAC_ENABLE = BIT(3),
-
-		RV1126_TXCLK_M1_DLY_ENA_GMAC_MASK = BIT(2),
-		RV1126_TXCLK_M1_DLY_ENA_GMAC_DISABLE = 0,
-		RV1126_TXCLK_M1_DLY_ENA_GMAC_ENABLE = BIT(2),
-
-		RV1126_RXCLK_M0_DLY_ENA_GMAC_MASK = BIT(1),
-		RV1126_RXCLK_M0_DLY_ENA_GMAC_DISABLE = 0,
-		RV1126_RXCLK_M0_DLY_ENA_GMAC_ENABLE = BIT(1),
-
-		RV1126_TXCLK_M0_DLY_ENA_GMAC_MASK = BIT(0),
-		RV1126_TXCLK_M0_DLY_ENA_GMAC_DISABLE = 0,
-		RV1126_TXCLK_M0_DLY_ENA_GMAC_ENABLE = BIT(0),
-	};
-	enum {
-		RV1126_M0_CLK_RX_DL_CFG_GMAC_SHIFT = 0x8,
-		RV1126_M0_CLK_RX_DL_CFG_GMAC_MASK = GENMASK(14, 8),
-
-		RV1126_M0_CLK_TX_DL_CFG_GMAC_SHIFT = 0x0,
-		RV1126_M0_CLK_TX_DL_CFG_GMAC_MASK = GENMASK(6, 0),
-	};
-	enum {
-		RV1126_M1_CLK_RX_DL_CFG_GMAC_SHIFT = 0x8,
-		RV1126_M1_CLK_RX_DL_CFG_GMAC_MASK = GENMASK(14, 8),
-
-		RV1126_M1_CLK_TX_DL_CFG_GMAC_SHIFT = 0x0,
-		RV1126_M1_CLK_TX_DL_CFG_GMAC_MASK = GENMASK(6, 0),
-	};
-
-	grf = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
-
-	rk_clrsetreg(&grf->mac_con0,
-		     RV1126_TXCLK_M0_DLY_ENA_GMAC_MASK |
-		     RV1126_RXCLK_M0_DLY_ENA_GMAC_MASK |
-		     RV1126_TXCLK_M1_DLY_ENA_GMAC_MASK |
-		     RV1126_RXCLK_M1_DLY_ENA_GMAC_MASK |
-		     RV1126_GMAC_PHY_INTF_SEL_MASK,
-		     RV1126_TXCLK_M0_DLY_ENA_GMAC_ENABLE |
-		     RV1126_RXCLK_M0_DLY_ENA_GMAC_ENABLE |
-		     RV1126_TXCLK_M1_DLY_ENA_GMAC_ENABLE |
-		     RV1126_RXCLK_M1_DLY_ENA_GMAC_ENABLE |
-		     RV1126_GMAC_PHY_INTF_SEL_RGMII);
-
-	rk_clrsetreg(&grf->mac_con1,
-		     RV1126_M0_CLK_RX_DL_CFG_GMAC_MASK |
-		     RV1126_M0_CLK_TX_DL_CFG_GMAC_MASK,
-		     pdata->rx_delay << RV1126_M0_CLK_RX_DL_CFG_GMAC_SHIFT |
-		     pdata->tx_delay << RV1126_M0_CLK_TX_DL_CFG_GMAC_SHIFT);
-
-	rk_clrsetreg(&grf->mac_con2,
-		     RV1126_M1_CLK_RX_DL_CFG_GMAC_MASK |
-		     RV1126_M1_CLK_TX_DL_CFG_GMAC_MASK,
-		     pdata->rx_delay << RV1126_M1_CLK_RX_DL_CFG_GMAC_SHIFT |
-		     pdata->tx_delay << RV1126_M1_CLK_TX_DL_CFG_GMAC_SHIFT);
-}
-#endif
-
-#ifdef CONFIG_DWC_ETH_QOS
-static void rk3588_set_clock_selection(struct gmac_rockchip_platdata *pdata)
+static void rk3588_set_clock_selection(struct gmac_rockchip_plat *pdata)
 {
 	struct rk3588_php_grf *php_grf;
 	unsigned int val, mask;
 
 	enum {
-		RK3588_GMAC_CLK_SELET_SHIFT = 0x4,
-		RK3588_GMAC_CLK_SELET_MASK = BIT(4),
-		RK3588_GMAC_CLK_SELET_CRU = BIT(4),
-		RK3588_GMAC_CLK_SELET_IO = 0,
+		RK3588_GMAC_CLK_SELECT_SHIFT = 0x4,
+		RK3588_GMAC_CLK_SELECT_MASK = BIT(4),
+		RK3588_GMAC_CLK_SELECT_CRU = BIT(4),
+		RK3588_GMAC_CLK_SELECT_IO = 0,
 	};
 
 	php_grf = syscon_get_first_range(ROCKCHIP_SYSCON_PHP_GRF);
-	val = pdata->clock_input ? RK3588_GMAC_CLK_SELET_IO :
-				   RK3588_GMAC_CLK_SELET_CRU;
-	mask = RK3588_GMAC_CLK_SELET_MASK;
+	val = pdata->clock_input ? RK3588_GMAC_CLK_SELECT_IO :
+				   RK3588_GMAC_CLK_SELECT_CRU;
+	mask = RK3588_GMAC_CLK_SELECT_MASK;
 
 	if (pdata->bus_id == 1) {
 		val <<= 5;
@@ -896,9 +862,7 @@ static void rk3588_set_clock_selection(struct gmac_rockchip_platdata *pdata)
 
 	rk_clrsetreg(&php_grf->clk_con1, mask, val);
 }
-#endif
 
->>>>>>> bf0e94d0ef2f (net: gmac_rockchip: Add rk3588 gmac support)
 static int gmac_rockchip_probe(struct udevice *dev)
 {
 	struct gmac_rockchip_plat *pdata = dev_get_plat(dev);
@@ -906,29 +870,37 @@ static int gmac_rockchip_probe(struct udevice *dev)
 		(struct rk_gmac_ops *)dev_get_driver_data(dev);
 	struct dw_eth_pdata *dw_pdata = dev_get_plat(dev);
 	struct eth_pdata *eth_pdata = &dw_pdata->eth_pdata;
-	struct clk clk;
+	struct clk clk, pclk;
 	ulong rate;
 	int ret;
-
-//	pdata->bus_id = dev->seq;
+printf("probing 1\n");
+	pdata->bus_id = 1;
 	ret = clk_set_defaults(dev, CLK_DEFAULTS_PRE);
 	if (ret)
 		debug("%s clk_set_defaults failed %d\n", __func__, ret);
 
+printf("probing 2\n");
 	ret = clk_get_by_index(dev, 0, &clk);
 	if (ret)
 		return ret;
 
+	ret = clk_get_by_name(dev, "pclk_mac", &pclk);
+	if (ret) return ret;
+clk_set_rate(&pclk, 1);
+
+//	ret = clk_get_by_name(dev, "clk_mac_ref", &pclk);
+//	if (ret) return ret;
+//	clk_set_rate(&pclk, 50000000);
+
+printf("probing 2\n");
 	if (ops->set_clock_selection)
 		ops->set_clock_selection(pdata);
 
+printf("probing 2.5 type interface = %d\n", eth_pdata->phy_interface);
 	switch (eth_pdata->phy_interface) {
 	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-		if (eth_pdata->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID)
-			pdata->rx_delay = -1;
-
 		/* Set to RGMII mode */
+printf("RGMII simple %d\n", PHY_INTERFACE_MODE_RGMII);
 		if (ops->set_to_rgmii)
 			ops->set_to_rgmii(pdata);
 		else
@@ -953,6 +925,7 @@ static int gmac_rockchip_probe(struct udevice *dev)
 		if (ops->set_to_rgmii) {
 			pdata->tx_delay = 0;
 			pdata->rx_delay = 0;
+printf("RGMII ID\n");
 			ops->set_to_rgmii(pdata);
 		} else
 			return -EPERM;
@@ -982,6 +955,8 @@ static int gmac_rockchip_probe(struct udevice *dev)
 		 /* Set to RGMII_RXID mode */
 		if (ops->set_to_rgmii) {
 			pdata->tx_delay = 0;
+			pdata->rx_delay = -1;
+printf("RXID ?!\n");
 			ops->set_to_rgmii(pdata);
 		} else
 			return -EPERM;
@@ -997,6 +972,7 @@ static int gmac_rockchip_probe(struct udevice *dev)
 		/* Set to RGMII_TXID mode */
 		if (ops->set_to_rgmii) {
 			pdata->rx_delay = 0;
+printf("RGMII TXID\n");
 			ops->set_to_rgmii(pdata);
 		} else
 			return -EPERM;
@@ -1012,7 +988,7 @@ static int gmac_rockchip_probe(struct udevice *dev)
 		debug("NO interface defined!\n");
 		return -ENXIO;
 	}
-
+printf("probing end\n");
 	return designware_eth_probe(dev);
 }
 
@@ -1023,17 +999,20 @@ static int gmac_rockchip_eth_start(struct udevice *dev)
 	struct rk_gmac_ops *ops =
 		(struct rk_gmac_ops *)dev_get_driver_data(dev);
 	int ret;
-
+printf("dw init\n");
 	ret = designware_eth_init(priv, pdata->enetaddr);
 	if (ret)
 		return ret;
+printf("dw init 2\n");
 	ret = ops->fix_mac_speed(priv);
 	if (ret)
 		return ret;
+printf("dw init 3\n");
 	ret = designware_eth_enable(priv);
 	if (ret)
 		return ret;
 
+printf("dw init 4\n");
 	return 0;
 }
 

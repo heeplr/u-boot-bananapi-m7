@@ -115,8 +115,11 @@ static int rtl8211f_probe(struct phy_device *phydev)
 #ifdef CONFIG_RTL8211F_PHY_FORCE_EEE_RXC_ON
 	phydev->flags |= PHY_RTL8211F_FORCE_EEE_RXC_ON;
 #endif
+printf("RTL8211F probe\n");
 
-	return 0;
+	int status = phy_read(phydev, MDIO_DEVAD_NONE, 0);
+printf("status = %x\n", status);
+	return status < 0 ? status : 0;
 }
 
 static int rtl8210f_probe(struct phy_device *phydev)
@@ -125,7 +128,9 @@ static int rtl8210f_probe(struct phy_device *phydev)
 	phydev->flags |= PHY_RTL8201F_S700_RMII_TIMINGS;
 #endif
 
-	return 0;
+	int status = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PHY_STATUS);
+printf("status = %x\n", status);
+	return status < 0 ? status : 0;
 }
 
 /* RealTek RTL8211x */
@@ -221,7 +226,7 @@ default_delay:
 static int rtl8211f_config(struct phy_device *phydev)
 {
 	u16 reg;
-
+printf("rtl8211f_config\n");
 	if (phydev->flags & PHY_RTL8211F_FORCE_EEE_RXC_ON) {
 		unsigned int reg;
 
@@ -387,7 +392,7 @@ static int rtl8211x_startup(struct phy_device *phydev)
 static int rtl8211f_startup(struct phy_device *phydev)
 {
 	int ret;
-
+printf("rtl8211f_startup\n");
 	/* Read the Status (2x to make sure link is right) */
 	ret = genphy_update_link(phydev);
 	if (ret)

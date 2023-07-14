@@ -7,7 +7,7 @@
 /*
  * Designware ethernet IP driver for U-Boot
  */
-
+#define DEBUG
 #include <common.h>
 #include <clk.h>
 #include <cpu_func.h>
@@ -39,16 +39,19 @@ static int dw_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)
 	ulong start;
 	u16 miiaddr;
 	int timeout = CFG_MDIO_TIMEOUT;
+//printf("trying to read addr %x, devad %x, reg %x\n", addr, devad, reg);
 
 	miiaddr = ((addr << MIIADDRSHIFT) & MII_ADDRMSK) |
 		  ((reg << MIIREGSHIFT) & MII_REGMSK);
 
-	writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, &mac_p->miiaddr);
+	writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, (u8*)mac_p + 0x200);
+printf("read from %x\n", (u8*)mac_p + 0x200);
 
 	start = get_timer(0);
 	while (get_timer(start) < timeout) {
-		if (!(readl(&mac_p->miiaddr) & MII_BUSY))
-			return readl(&mac_p->miidata);
+		if (!(readl((u8*)mac_p + 0x200) & MII_BUSY)) {
+			u32 ret = readl((u8*)mac_p + 0x204);
+				printf("mdio read ok : %x\n", ret);return ret;}
 		udelay(10);
 	};
 
@@ -64,21 +67,21 @@ static int dw_mdio_write(struct mii_dev *bus, int addr, int devad, int reg,
 	u16 miiaddr;
 	int ret = -ETIMEDOUT, timeout = CFG_MDIO_TIMEOUT;
 
-	writel(val, &mac_p->miidata);
+	writel(val, (u8*)mac_p +0x204);
 	miiaddr = ((addr << MIIADDRSHIFT) & MII_ADDRMSK) |
 		  ((reg << MIIREGSHIFT) & MII_REGMSK) | MII_WRITE;
 
-	writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, &mac_p->miiaddr);
+	writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, (u8*)mac_p +0x200);
 
 	start = get_timer(0);
 	while (get_timer(start) < timeout) {
-		if (!(readl(&mac_p->miiaddr) & MII_BUSY)) {
+		if (!(readl((u8*)mac_p+0x200) & MII_BUSY)) {
 			ret = 0;
 			break;
 		}
 		udelay(10);
 	};
-
+if(ret) printf("dm mdio write fail %d, addr %d\n", ret, addr);
 	return ret;
 }
 
@@ -363,7 +366,7 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
 	unsigned int start;
 	int ret;
-
+//phy_reset(priv->phydev);
 	writel(readl(&dma_p->busmode) | DMAMAC_SRST, &dma_p->busmode);
 
 	/*
@@ -384,7 +387,7 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 
 		mdelay(100);
 	};
-
+printf("DMA was reset !\n");
 	/*
 	 * Soft reset above clears HW address registers.
 	 * So we have to set it here once again.
@@ -409,7 +412,7 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 #ifdef CONFIG_DW_AXI_BURST_LEN
 	writel((CONFIG_DW_AXI_BURST_LEN & 0x1FF >> 1), &dma_p->axibus);
 #endif
-
+printf("Startig the phy......\n");
 	/* Start up the PHY */
 	ret = phy_startup(priv->phydev);
 	if (ret) {
@@ -739,7 +742,7 @@ int designware_eth_probe(struct udevice *dev)
 		pdata->phy_interface = PHY_INTERFACE_MODE_RMII;
 	}
 
-	debug("%s, iobase=%x, priv=%p\n", __func__, iobase, priv);
+	debug("%s, iobase=%x, priv=%p %x %x\n", __func__, iobase, priv, *(u32*)iobase, *((u32*)(iobase) + 0x110/4));
 	ioaddr = iobase;
 	priv->mac_regs_p = (struct eth_mac_regs *)ioaddr;
 	priv->dma_regs_p = (struct eth_dma_regs *)(ioaddr + DW_DMA_BASE_OFFSET);

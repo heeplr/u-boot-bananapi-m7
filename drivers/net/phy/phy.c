@@ -7,6 +7,7 @@
  *
  * Based loosely off of Linux's PHY Lib
  */
+#define DEBUG
 #include <common.h>
 #include <console.h>
 #include <dm.h>
@@ -224,14 +225,14 @@ int genphy_config_aneg(struct phy_device *phydev)
  */
 int genphy_update_link(struct phy_device *phydev)
 {
-	unsigned int mii_reg;
+	int mii_reg;
 
 	/*
 	 * Wait if the link is up, and autonegotiation is in progress
 	 * (ie - we're capable and it's not done)
 	 */
 	mii_reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMSR);
-
+printf("start %lu\n", timer_get_us());
 	/*
 	 * If we already saw the link up, and it hasn't gone down, then
 	 * we don't need to wait for autoneg again
@@ -252,6 +253,7 @@ int genphy_update_link(struct phy_device *phydev)
 			if (i > (PHY_ANEG_TIMEOUT / 50)) {
 				printf(" TIMEOUT !\n");
 				phydev->link = 0;
+				break;
 				return -ETIMEDOUT;
 			}
 
@@ -264,8 +266,13 @@ int genphy_update_link(struct phy_device *phydev)
 			if ((i++ % 10) == 0)
 				printf(".");
 
+printf("1 %lu\n", timer_get_us());
 			mii_reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMSR);
+printf("2 %lu mii_reg=%x(%d)\n", timer_get_us(), mii_reg, mii_reg);
+			if (mii_reg < 0)
+				return mii_reg;
 			mdelay(50);	/* 50 ms */
+printf("3 %lu\n", timer_get_us());
 		}
 		printf(" done\n");
 		phydev->link = 1;
@@ -554,7 +561,7 @@ static struct phy_driver *get_phy_driver(struct phy_device *phydev)
 	for (drv = ll_entry; drv != ll_entry + ll_n_ents; drv++)
 		if ((drv->uid & drv->mask) == (phy_id & drv->mask))
 			return drv;
-
+printf("GENERIC FOR PHY!\n");
 	/* If we made it here, there's no driver for this PHY */
 	return generic_for_phy(phydev);
 }
@@ -901,6 +908,7 @@ struct phy_device *phy_connect(struct mii_dev *bus, int addr,
 			       phy_interface_t interface)
 {
 	struct phy_device *phydev = NULL;
+printf("phy connect addr = %d\n", addr);
 	uint mask = (addr >= 0) ? (1 << addr) : 0xffffffff;
 
 #ifdef CONFIG_PHY_FIXED
@@ -999,7 +1007,7 @@ int phy_read(struct phy_device *phydev, int devad, int regnum)
 		debug("%s: No bus configured\n", __func__);
 		return -1;
 	}
-
+//printf("bus read este %x\n", bus->read);
 	return bus->read(bus, phydev->addr, devad, regnum);
 }
 

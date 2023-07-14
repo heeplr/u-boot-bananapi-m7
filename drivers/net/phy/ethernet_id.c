@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2022 Xilinx, Inc.
  */
-
+#define DEBUG
 #include <common.h>
 #include <dm/device_compat.h>
 #include <phy.h>
@@ -71,6 +71,6 @@ struct phy_device *phy_connect_phy_id(struct mii_dev *bus, struct udevice *dev,
 	phydev = phy_device_create(bus, phyaddr, id, false);
 	if (phydev)
 		phydev->node = node;
-
+printf("PHYDEV created %x %x, addr %x\n", vendor, device, phyaddr);
 	return phydev;
 }

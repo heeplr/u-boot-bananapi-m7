@@ -1210,7 +1210,7 @@ static ulong rk3588_gmac_set_clk(struct rk3588_clk_priv *priv,
 	int div;
 
 	div = DIV_ROUND_UP(priv->cpll_hz, rate);
-
+printf("div= %d\n", div);
 	switch (clk_id) {
 	case CLK_GMAC0_PTP_REF:
 		rk_clrsetreg(&cru->clksel_con[81],
@@ -1230,12 +1230,31 @@ static ulong rk3588_gmac_set_clk(struct rk3588_clk_priv *priv,
 			     CLK_GMAC_125M_DIV_MASK | CLK_GMAC_125M_SEL_MASK,
 			     CLK_GMAC_125M_SEL_CPLL << CLK_GMAC_125M_SEL_SHIFT |
 			     (div - 1) << CLK_GMAC_125M_DIV_SHIFT);
+		//rk_clrsetreg(&cru->clkgate_con[35],
+		//	     BIT(5),BIT(5));
 		break;
 	case CLK_GMAC_50M:
 		rk_clrsetreg(&cru->clksel_con[84],
 			     CLK_GMAC_50M_DIV_MASK | CLK_GMAC_50M_SEL_MASK,
 			     CLK_GMAC_50M_SEL_CPLL << CLK_GMAC_50M_SEL_SHIFT |
 			     (div - 1) << CLK_GMAC_50M_DIV_SHIFT);
+		break;
+	case PCLK_GMAC1:
+//		rk_clrsetreg(&cru->clksel_con[80],
+//			    (1<<13)|( 0x1f <<8)  ,
+//				( 1<<13) |(div -1) << 8);
+
+		rk_clrsetreg(&cru->clksel_con[1],
+			     (BIT(5)|0x1f ), BIT(5)|9);
+//		rk_clrsetreg(&cru->clkgate_con[34],
+//			     BIT(8),BIT(8));
+//		rk_clrsetreg(&cru->clkgate_con[32],
+//			     BIT(4),0);
+		break;
+	case ACLK_GMAC1:
+	//	rk_clrsetreg(&cru->clkgate_con[32],
+	//		     BIT(11),0);
+
 		break;
 	default:
 		return -ENOENT;
@@ -1596,6 +1615,8 @@ static ulong rk3588_clk_get_rate(struct clk *clk)
 	case CLK_GMAC1_PTP_REF:
 	case CLK_GMAC_125M:
 	case CLK_GMAC_50M:
+	case PCLK_GMAC1:
+	case ACLK_GMAC1:
 		rate = rk3588_gmac_get_clk(priv, clk->id);
 		break;
 	case SCLK_UART1:
@@ -1753,6 +1774,9 @@ static ulong rk3588_clk_set_rate(struct clk *clk, ulong rate)
 	case CLK_GMAC1_PTP_REF:
 	case CLK_GMAC_125M:
 	case CLK_GMAC_50M:
+	case PCLK_GMAC1:
+	case ACLK_GMAC1:
+	printf("setting gmac1 %ld %lu\n", clk->id, rate);
 		ret = rk3588_gmac_set_clk(priv, clk->id, rate);
 		break;
 	case SCLK_UART1:
@@ -1773,6 +1797,7 @@ static ulong rk3588_clk_set_rate(struct clk *clk, ulong rate)
 		break;
 #endif
 	default:
+printf("ERROR clknot found\n");
 		return -ENOENT;
 	}
 
@@ -1925,6 +1950,9 @@ static void rk3588_clk_init(struct rk3588_clk_priv *priv)
 		     ACLK_TOP_S200_SEL_MASK,
 		     (ACLK_TOP_S400_SEL_400M << ACLK_TOP_S400_SEL_SHIFT) |
 		     (ACLK_TOP_S200_SEL_200M << ACLK_TOP_S200_SEL_SHIFT));
+
+		rk_clrsetreg(&priv->cru->clksel_con[1],
+			     (BIT(5)|0x1f ), BIT(5)|9);
 }
 
 static int rk3588_clk_probe(struct udevice *dev)
