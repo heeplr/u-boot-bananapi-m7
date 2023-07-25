@@ -27,7 +27,7 @@
 	pinctrl-0 = <&gmac1_miim
 		     &gmac1_tx_bus2
 		     &gmac1_rx_bus2
-		     &gmac1_rgmii_clk
+		     &gmac1_rgmii_clk &rtl8211f_rst
 		     &gmac1_rgmii_bus>;
 	pinctrl-names = "default";
 	tx_delay = <0x3a>;

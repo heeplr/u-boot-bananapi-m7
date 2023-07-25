@@ -82,6 +82,7 @@ struct eqos_mac_regs {
 #define EQOS_MAC_MDIO_ADDRESS_PA_SHIFT			21
 #define EQOS_MAC_MDIO_ADDRESS_RDA_SHIFT			16
 #define EQOS_MAC_MDIO_ADDRESS_CR_SHIFT			8
+#define EQOS_MAC_MDIO_ADDRESS_CR_100_150		1
 #define EQOS_MAC_MDIO_ADDRESS_CR_20_35			2
 #define EQOS_MAC_MDIO_ADDRESS_CR_250_300		5
 #define EQOS_MAC_MDIO_ADDRESS_SKAP			BIT(4)
@@ -279,6 +280,7 @@ struct eqos_priv {
 	bool clk_ck_enabled;
 	unsigned int tx_fifo_sz, rx_fifo_sz;
 	u32 reset_delays[3];
+	void *priv;
 };
 
 void eqos_inval_desc_generic(void *desc);

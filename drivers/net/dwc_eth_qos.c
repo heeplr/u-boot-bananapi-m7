@@ -26,7 +26,7 @@
  *    supports a single RGMII PHY. This configuration also has SW control over
  *    all clock and reset signals to the HW block.
  */
-
+#define DEBUG
 #define LOG_CATEGORY UCLASS_ETH
 
 #include <common.h>
@@ -75,6 +75,7 @@
  */
 static void *eqos_alloc_descs(struct eqos_priv *eqos, unsigned int num)
 {
+//	return (void *)noncached_alloc(num * eqos->desc_size, ARCH_DMA_MINALIGN);
 	return memalign(ARCH_DMA_MINALIGN, num * eqos->desc_size);
 }
 
@@ -693,6 +694,7 @@ static int eqos_write_hwaddr(struct udevice *dev)
 	if (!eqos->config->reg_access_always_ok && !eqos->reg_access_ok)
 		return 0;
 
+printf("write mac %x %x %x\n", plat->enetaddr[0], plat->enetaddr[1], plat->enetaddr[2]);
 	/* Update the MAC address */
 	val = (plat->enetaddr[5] << 8) |
 		(plat->enetaddr[4]);
@@ -715,7 +717,7 @@ static int eqos_read_rom_hwaddr(struct udevice *dev)
 	ret = eqos->config->ops->eqos_get_enetaddr(dev);
 	if (ret < 0)
 		return ret;
-
+printf("iread rom %x %x %x\n", pdata->enetaddr[0], pdata->enetaddr[1], pdata->enetaddr[2]);
 	return !is_valid_ethaddr(pdata->enetaddr);
 }
 
@@ -1040,6 +1042,8 @@ static int eqos_start(struct udevice *dev)
 					     (i * EQOS_MAX_PACKET_SIZE));
 		rx_desc->des3 = EQOS_DESC3_OWN | EQOS_DESC3_BUF1V;
 		mb();
+printf("des3 este %x\n", rx_desc->des3);
+	mb(); __iowmb();
 		eqos->config->ops->eqos_flush_desc(rx_desc);
 		eqos->config->ops->eqos_inval_buffer(eqos->rx_dma_buf +
 						(i * EQOS_MAX_PACKET_SIZE),
@@ -1075,6 +1079,14 @@ static int eqos_start(struct udevice *dev)
 	 */
 	last_rx_desc = (ulong)eqos_get_desc(eqos, EQOS_DESCRIPTORS_RX - 1, true);
 	writel(last_rx_desc, &eqos->dma_regs->ch0_rxdesc_tail_pointer);
+	/* Enable everything */
+	setbits_le32(&eqos->dma_regs->ch0_tx_control,
+		     EQOS_DMA_CH0_TX_CONTROL_ST);
+	setbits_le32(&eqos->dma_regs->ch0_rx_control,
+		     EQOS_DMA_CH0_RX_CONTROL_SR);
+	setbits_le32(&eqos->mac_regs->configuration,
+		     EQOS_MAC_CONFIGURATION_TE | EQOS_MAC_CONFIGURATION_RE);
+
 
 	eqos->started = true;
 
@@ -1166,15 +1178,16 @@ static int eqos_send(struct udevice *dev, void *packet, int length)
 	 * Make sure that if HW sees the _OWN write below, it will see all the
 	 * writes to the rest of the descriptor too.
 	 */
-	mb();
+	mb(); __iowmb();
 	tx_desc->des3 = EQOS_DESC3_OWN | EQOS_DESC3_FD | EQOS_DESC3_LD | length;
 	eqos->config->ops->eqos_flush_desc(tx_desc);
-
+printf("tx desc->des3=%x\n", tx_desc->des3);
 	writel((ulong)eqos_get_desc(eqos, eqos->tx_desc_idx, false),
 		&eqos->dma_regs->ch0_txdesc_tail_pointer);
 
 	for (i = 0; i < 1000000; i++) {
 		eqos->config->ops->eqos_inval_desc(tx_desc);
+//printf("tx desc->des3=%x\n", tx_desc->des3);
 		if (!(readl(&tx_desc->des3) & EQOS_DESC3_OWN))
 			return 0;
 		udelay(1);
@@ -1197,6 +1210,8 @@ static int eqos_recv(struct udevice *dev, int flags, uchar **packetp)
 	eqos->config->ops->eqos_inval_desc(rx_desc);
 	if (rx_desc->des3 & EQOS_DESC3_OWN) {
 		debug("%s: RX packet not available\n", __func__);
+		//volatile u32 *cuc = * (&rx_desc->des3);
+		printf("dma state este %x\n", readl(&eqos->dma_regs->unused_1008[1]));
 		return -EAGAIN;
 	}
 
@@ -1236,6 +1251,7 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 			rx_desc = eqos_get_desc(eqos, idx, true);
 			rx_desc->des0 = 0;
 			mb();
+	mb(); __iowmb();
 			eqos->config->ops->eqos_flush_desc(rx_desc);
 			eqos->config->ops->eqos_inval_buffer(packet, length);
 			rx_desc->des0 = (u32)(ulong)(eqos->rx_dma_buf +
@@ -1248,6 +1264,7 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 			 * descriptor too.
 			 */
 			mb();
+	mb(); __iowmb();
 			rx_desc->des3 = EQOS_DESC3_OWN | EQOS_DESC3_BUF1V;
 			eqos->config->ops->eqos_flush_desc(rx_desc);
 		}
