@@ -117,7 +117,7 @@ static int rk3568_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	u8 bit;
 	u32 data;
 
-	debug("setting mux of GPIO%d-%d to %d\n", bank->bank_num, pin, mux);
+	printf("setting mux of GPIO%d-%d to %d\n", bank->bank_num, pin, mux);
 
 	if (bank->iomux[iomux_num].type & IOMUX_SOURCE_PMU)
 		regmap = priv->regmap_pmu;

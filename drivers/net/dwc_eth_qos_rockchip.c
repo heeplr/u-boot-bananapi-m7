@@ -11,6 +11,7 @@
 #include <asm/io.h>
 #include <asm/arch-rockchip/clock.h>
 #include <asm/arch-rockchip/hardware.h>
+#include <asm/arch-rockchip/grf_rk3568.h>
 #include <asm/arch-rockchip/grf_rk3588.h>
 #include <clk.h>
 #include <dm.h>
@@ -24,7 +25,13 @@
 
 #include "dwc_eth_qos.h"
 
-static int eqos_set_tx_clk_speed_rk3588(struct udevice *dev);
+static int eqos_set_tx_clk_speed_rk3568(struct udevice *dev);
+static const u32 rk3568_instance_regs[] = {
+	0xfe2a0000, /* gmac0 */
+	0xfe010000, /* gmac1 */
+	0x0, /* sentinel */
+};
+
 static const u32 rk3588_instance_regs[] = {
 	0xfe1b0000, /* gmac0 */
 	0xfe1c0000, /* gmac1 */
@@ -76,7 +83,7 @@ static int eqos_start_clks_rk(struct udevice *dev)
 		if (ret < 0)
 			pr_info("clk_enable(clk_tx) failed: %d", ret);
 	}
-//eqos_set_tx_clk_speed_rk3588(dev);
+
 	debug("%s: OK\n", __func__);
 	return 0;
 }
@@ -132,6 +139,59 @@ static int eqos_stop_clks_rk(struct udevice *dev)
 
 	debug("%s: OK\n", __func__);
 	return 0;
+}
+static void eqos_set_to_rgmii_rk3568(struct udevice *dev)
+{
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_rockchip_priv *rk = eqos->priv;
+	struct rk3568_grf *grf;
+	void *con0, *con1;
+
+	enum {
+		RK3568_GMAC_PHY_INTF_SEL_SHIFT = 4,
+		RK3568_GMAC_PHY_INTF_SEL_MASK = GENMASK(6, 4),
+		RK3568_GMAC_PHY_INTF_SEL_RGMII = BIT(4),
+
+		RK3568_RXCLK_DLY_ENA_GMAC_MASK = BIT(1),
+		RK3568_RXCLK_DLY_ENA_GMAC_DISABLE = 0,
+		RK3568_RXCLK_DLY_ENA_GMAC_ENABLE = BIT(1),
+
+		RK3568_TXCLK_DLY_ENA_GMAC_MASK = BIT(0),
+		RK3568_TXCLK_DLY_ENA_GMAC_DISABLE = 0,
+		RK3568_TXCLK_DLY_ENA_GMAC_ENABLE = BIT(0),
+	};
+
+	enum {
+		RK3568_CLK_RX_DL_CFG_GMAC_SHIFT = 0x8,
+		RK3568_CLK_RX_DL_CFG_GMAC_MASK = GENMASK(15, 8),
+
+		RK3568_CLK_TX_DL_CFG_GMAC_SHIFT = 0x0,
+		RK3568_CLK_TX_DL_CFG_GMAC_MASK = GENMASK(7, 0),
+	};
+
+	grf = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
+
+	if (rk->instance_id == 1) {
+		con0 = &grf->mac1_con0;
+		con1 = &grf->mac1_con1;
+	} else {
+		con0 = &grf->mac0_con0;
+		con1 = &grf->mac0_con1;
+	}
+
+	rk_clrsetreg(con0,
+		     RK3568_CLK_RX_DL_CFG_GMAC_MASK |
+		     RK3568_CLK_TX_DL_CFG_GMAC_MASK,
+		     rk->rx_delay << RK3568_CLK_RX_DL_CFG_GMAC_SHIFT |
+		     rk->tx_delay << RK3568_CLK_TX_DL_CFG_GMAC_SHIFT);
+
+	rk_clrsetreg(con1,
+		     RK3568_TXCLK_DLY_ENA_GMAC_MASK |
+		     RK3568_RXCLK_DLY_ENA_GMAC_MASK |
+		     RK3568_GMAC_PHY_INTF_SEL_MASK,
+		     rk->rx_delay ? RK3568_TXCLK_DLY_ENA_GMAC_ENABLE : RK3568_TXCLK_DLY_ENA_GMAC_DISABLE |
+		     rk->tx_delay ? RK3568_RXCLK_DLY_ENA_GMAC_ENABLE : RK3568_RXCLK_DLY_ENA_GMAC_DISABLE|
+		     RK3568_GMAC_PHY_INTF_SEL_RGMII);
 }
 
 static void eqos_set_to_rgmii_rk3588(struct udevice *dev)
@@ -227,6 +287,46 @@ printf("phpgrf gmac_con0 %x\n", intf_sel);
 	rk_clrsetreg(&php_grf->clk_con1, clk_mode_mask, clk_mode);
 printf("phpgrf clk-con1 %x\n", clk_mode);
 }
+static int eqos_set_mac_speed_rk3568(struct udevice *dev)
+{
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	//struct eqos_rockchip_priv *rk = eqos->priv;
+	struct clk clk_speed;
+	int ret;
+
+	debug("%s(dev=%p):\n", __func__, dev);
+
+	ret = clk_get_by_name(dev, "clk_mac_speed",
+			      &clk_speed);
+	if (ret)
+		return ret;
+
+	switch (eqos->phy->speed) {
+	case 10:
+		ret = clk_set_rate(&clk_speed, 2500000);
+		if (ret)
+			return ret;
+		break;
+	case 100:
+		ret = clk_set_rate(&clk_speed, 25000000);
+printf("setting clock rate 25000000 %d\n", ret);
+		if (ret)
+			return ret;
+		break;
+	case 1000:
+		ret = clk_set_rate(&clk_speed, 125000000);
+printf("setting clock rate 125000000 %d\n", ret);
+		if (ret)
+			return ret;
+		break;
+	default:
+		debug("Unknown phy speed: %d\n", eqos->phy->speed);
+		return -EINVAL;
+	}
+
+	debug("%s: OK\n", __func__);
+	return 0;
+}
 
 static int eqos_set_mac_speed_rk3588(struct udevice *dev)
 {
@@ -287,6 +387,64 @@ static int eqos_set_mac_speed_rk3588(struct udevice *dev)
 	return 0;
 }
 
+static int eqos_set_tx_clk_speed_rk3568(struct udevice *dev)
+{
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_rockchip_priv *rk = eqos->priv;
+	phy_interface_t interface;
+	ulong rate;
+
+	debug("%s(dev=%p):\n", __func__, dev);
+
+	interface = eqos->config->interface(dev);
+
+	eqos_set_mac_speed_rk3568(dev);
+printf("interface este %d\n", interface);
+	switch (interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		/* Set to RGMII mode */
+printf("RGMII simple %d\n", PHY_INTERFACE_MODE_RGMII);
+		eqos_set_to_rgmii_rk3568(dev);
+		/*
+		 * If the gmac clock is from internal pll, need to set and
+		 * check the return value for gmac clock at RGMII mode. If
+		 * the gmac clock is from external source, the clock rate
+		 * is not set, because of it is bypassed.
+		 */
+
+		if (!rk->clock_input && clk_valid(&eqos->clk_master_bus)) {
+			rate = clk_set_rate(&eqos->clk_master_bus, 125000000);
+			if (rate != 125000000)
+				return -EINVAL;
+		}
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+printf("RGMII ID\n");
+		rk->tx_delay = 0;
+		rk->rx_delay = 0;
+		eqos_set_to_rgmii_rk3568(dev);
+
+		/*
+		 * If the gmac clock is from internal pll, need to set and
+		 * check the return value for gmac clock at RGMII mode. If
+		 * the gmac clock is from external source, the clock rate
+		 * is not set, because of it is bypassed.
+		 */
+
+		if (!rk->clock_input && clk_valid(&eqos->clk_master_bus)) {
+			rate = clk_set_rate(&eqos->clk_master_bus, 125000000);
+			if (rate != 125000000)
+				return -EINVAL;
+		}
+		break;
+	default:
+		debug("NO interface defined!\n");
+		return -ENXIO;
+	}
+
+	debug("%s: OK\n", __func__);
+	return 0;
+}
 
 /* Clock rates */
 #define RGMII_1000_NOM_CLK_FREQ			(250 * 1000 * 1000UL)
@@ -303,6 +461,9 @@ static int eqos_set_tx_clk_speed_rk3588(struct udevice *dev)
 	debug("%s(dev=%p):\n", __func__, dev);
 
 	interface = eqos->config->interface(dev);
+
+int ret =clk_set_defaults(dev, 0);
+if (ret) printf("clk set defaults failed\n");
 
 	eqos_set_mac_speed_rk3588(dev);
 
@@ -444,10 +605,11 @@ static int eqos_probe_resources_rk(struct udevice *dev)
 	if (ret)
 		printf("clk_get_by_name(ptp_ref) failed: %d", ret);
 
-	ret = clk_get_by_name(dev, "clk_mac_ref", &eqos->clk_tx);
+	ret = clk_get_by_name(dev, "clk_mac_refout", &eqos->clk_tx);
 	if (ret)
 		printf("clk_get_by_name(clk_mac_ref) failed: %d", ret);
 
+//eqos_set_tx_clk_speed_rk3568(dev);
 	debug("%s: OK\n", __func__);
 	return 0;
 }
@@ -466,6 +628,30 @@ static int eqos_probe_resources_rk3588(struct udevice *dev)
 	rk = eqos->priv;
 	while (rk3588_instance_regs[i]) {
 		if (rk3588_instance_regs[i] == eqos->regs) {
+			rk->instance_id = i;
+			break;
+		}
+		i++;
+	}
+	printf("Instance id = %d\n", rk->instance_id);
+
+	return ret;
+}
+
+static int eqos_probe_resources_rk3568(struct udevice *dev)
+{
+	struct eqos_priv *eqos = dev_get_priv(dev);
+	struct eqos_rockchip_priv *rk;
+	int ret;
+	int i = 0;
+
+	ret = eqos_probe_resources_rk(dev);
+	if (ret)
+		return ret;
+
+	rk = eqos->priv;
+	while (rk3568_instance_regs[i]) {
+		if (rk3568_instance_regs[i] == eqos->regs) {
 			rk->instance_id = i;
 			break;
 		}
@@ -499,6 +685,33 @@ static int eqos_remove_resources_rk(struct udevice *dev)
 	return 0;
 }
 
+static struct eqos_ops eqos_rk3568_ops = {
+	.eqos_inval_desc = eqos_inval_desc_generic,
+	.eqos_flush_desc = eqos_flush_desc_generic,
+	.eqos_inval_buffer = eqos_inval_buffer_generic,
+	.eqos_flush_buffer = eqos_flush_buffer_generic,
+	.eqos_probe_resources = eqos_probe_resources_rk3568,
+	.eqos_remove_resources = eqos_remove_resources_rk,
+	.eqos_stop_resets = eqos_null_ops,
+	.eqos_start_resets = eqos_null_ops,
+	.eqos_stop_clks = eqos_stop_clks_rk,
+	.eqos_start_clks = eqos_start_clks_rk,
+	.eqos_calibrate_pads = eqos_null_ops,
+	.eqos_disable_calibration = eqos_null_ops,
+	.eqos_set_tx_clk_speed = eqos_set_tx_clk_speed_rk3568,
+	.eqos_get_enetaddr = eqos_null_ops,
+};
+
+struct eqos_config __maybe_unused eqos_rk3568_config = {
+	.reg_access_always_ok = false,
+	.mdio_wait = 10000,
+	.swr_wait = 200,
+	.config_mac = EQOS_MAC_RXQ_CTRL0_RXQ0EN_NOT_ENABLED,
+	.config_mac_mdio = EQOS_MAC_MDIO_ADDRESS_CR_100_150,
+	.axi_bus_width = EQOS_AXI_WIDTH_64,
+	.interface = dev_read_phy_mode,
+	.ops = &eqos_rk3568_ops,
+};
 static struct eqos_ops eqos_rk3588_ops = {
 	.eqos_inval_desc = eqos_inval_desc_generic,
 	.eqos_flush_desc = eqos_flush_desc_generic,

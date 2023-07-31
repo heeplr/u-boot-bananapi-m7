@@ -262,7 +262,7 @@
 	phy-mode = "rgmii-id";
 	phy-supply = <&vcc_3v3>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim
+	pinctrl-0 = <&gmac1m1_miim &eth_phy_rst
 		     &gmac1m1_tx_bus2
 		     &gmac1m1_rx_bus2
 		     &gmac1m1_rgmii_clk

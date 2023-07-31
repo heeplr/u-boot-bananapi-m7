@@ -136,6 +136,9 @@ printf("status = %x\n", status);
 /* RealTek RTL8211x */
 static int rtl8211x_config(struct phy_device *phydev)
 {
+int config = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
+printf("BMCR = %x\n", config);
+
 	phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
 
 	/* mask interrupt at init; if the interrupt is
@@ -236,6 +239,7 @@ printf("rtl8211f_config\n");
 	}
 
 	phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
+	//phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, BIT(14));
 
 	phy_write(phydev, MDIO_DEVAD_NONE,
 		  MIIM_RTL8211F_PAGE_SELECT, 0xd08);
@@ -340,7 +344,8 @@ static int rtl8211f_parse_status(struct phy_device *phydev)
 
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xa43);
 	mii_reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PHY_STATUS);
-
+phy_write(phydev, MDIO_DEVAD_NONE, 0x19, BIT(11)|BIT(0));
+printf("parse status mii reg = %x\n", mii_reg);
 	phydev->link = 1;
 	while (!(mii_reg & MIIM_RTL8211F_PHYSTAT_LINK)) {
 		if (i > PHY_AUTONEGOTIATE_TIMEOUT) {

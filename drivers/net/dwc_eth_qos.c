@@ -871,7 +871,7 @@ static int eqos_start(struct udevice *dev)
 		EQOS_MAC_HW_FEATURE1_TXFIFOSIZE_MASK;
 	rx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_SHIFT) &
 		EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
-
+printf("hw feature1: %x, fifo sizes : %d %d\n", val, tx_fifo_sz, rx_fifo_sz);
 	/* r/tx_fifo_sz is encoded as log2(n / 128). Undo that by shifting */
 	tx_fifo_sz = 128 << tx_fifo_sz;
 	rx_fifo_sz = 128 << rx_fifo_sz;
@@ -885,7 +885,7 @@ static int eqos_start(struct udevice *dev)
 	/* r/tqs is encoded as (n / 256) - 1 */
 	tqs = tx_fifo_sz / 256 - 1;
 	rqs = rx_fifo_sz / 256 - 1;
-
+printf("tqs %d rqs %d\n", tqs, rqs);
 	clrsetbits_le32(&eqos->mtl_regs->txq0_operation_mode,
 			EQOS_MTL_TXQ0_OPERATION_MODE_TQS_MASK <<
 			EQOS_MTL_TXQ0_OPERATION_MODE_TQS_SHIFT,
@@ -975,9 +975,9 @@ static int eqos_start(struct udevice *dev)
 			EQOS_MAC_CONFIGURATION_GPSLCE |
 			EQOS_MAC_CONFIGURATION_WD |
 			EQOS_MAC_CONFIGURATION_JD |
-			EQOS_MAC_CONFIGURATION_JE,
+			EQOS_MAC_CONFIGURATION_JE ,
 			EQOS_MAC_CONFIGURATION_CST |
-			EQOS_MAC_CONFIGURATION_ACS);
+			EQOS_MAC_CONFIGURATION_ACS );
 
 	eqos_write_hwaddr(dev);
 
@@ -1079,14 +1079,6 @@ printf("des3 este %x\n", rx_desc->des3);
 	 */
 	last_rx_desc = (ulong)eqos_get_desc(eqos, EQOS_DESCRIPTORS_RX - 1, true);
 	writel(last_rx_desc, &eqos->dma_regs->ch0_rxdesc_tail_pointer);
-	/* Enable everything */
-	setbits_le32(&eqos->dma_regs->ch0_tx_control,
-		     EQOS_DMA_CH0_TX_CONTROL_ST);
-	setbits_le32(&eqos->dma_regs->ch0_rx_control,
-		     EQOS_DMA_CH0_RX_CONTROL_SR);
-	setbits_le32(&eqos->mac_regs->configuration,
-		     EQOS_MAC_CONFIGURATION_TE | EQOS_MAC_CONFIGURATION_RE);
-
 
 	eqos->started = true;
 
@@ -1747,6 +1739,13 @@ static const struct udevice_id eqos_ids[] = {
 	{
 		.compatible = "rockchip,rk3588-gmac",
 		.data = (ulong)&eqos_rk3588_config
+	},
+#endif
+
+#if IS_ENABLED(CONFIG_DWC_ETH_QOS_ROCKCHIP)
+	{
+		.compatible = "rockchip,rk3568-gmac",
+		.data = (ulong)&eqos_rk3568_config
 	},
 #endif
 
