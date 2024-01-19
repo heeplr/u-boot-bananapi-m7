@@ -10,6 +10,7 @@ build rock-5b:
     DEBIAN_FRONTEND: noninteractive
     GIT_SUBMODULE_STRATEGY: normal
     RKBIN_REPO_URL: https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/hardware-enablement/rockchip-3588/rkbin.git
+    TFA_REPO_URL: https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/hardware-enablement/rockchip-3588/trusted-firmware-a.git
   before_script:
     - apt update
     - apt install -y bc build-essential
@@ -28,11 +29,19 @@ build rock-5b:
   script:
     # download rkbin
     - git clone --depth 1 -b master ${RKBIN_REPO_URL} $CI_PROJECT_DIR/../rkbin
+    # clone TF-A
+    - git clone --depth 1 -b rk3588 ${TFA_REPO_URL} $CI_PROJECT_DIR/../trusted-firmware-a
 
     # prepare PATH
     - export CROSS_COMPILE=aarch64-linux-gnu-
     - export ARCH=arm64
-    - export BL31=../rkbin/bin/rk35/rk3588_bl31_v1.27.elf
+    # build BL31
+    - cd $CI_PROJECT_DIR/../trusted-firmware-a
+    - make PLAT=rk3588 bl31
+    - cd $CI_PROJECT_DIR
+
+    # prepare PATH for U-boot
+    - export BL31=../trusted-firmware-a/build/rk3588/release/bl31/bl31.elf
     - export ROCKCHIP_TPL=../rkbin/bin/rk35/rk3588_ddr_lp4_2112MHz_lp5_2736MHz_v1.08.bin
 
     # build
