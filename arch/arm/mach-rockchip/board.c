@@ -327,8 +327,8 @@ int fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 }
 #endif
 
-#ifdef CONFIG_MISC_INIT_R
-__weak int misc_init_r(void)
+#if defined(CONFIG_MISC_INIT_R) || defined(CONFIG_NET_BOARD_ETHADDR)
+static int set_cpuid(void)
 {
 	const u32 cpuid_offset = CFG_CPUID_OFFSET;
 	const u32 cpuid_length = 0x10;
@@ -340,11 +340,27 @@ __weak int misc_init_r(void)
 		return ret;
 
 	ret = rockchip_cpuid_set(cpuid, cpuid_length);
-	if (ret)
-		return ret;
-
-	ret = rockchip_setup_macaddr();
 
 	return ret;
+}
+#endif
+
+#ifdef CONFIG_MISC_INIT_R
+__weak int misc_init_r(void)
+{
+	return set_cpuid();
+}
+#endif
+
+#ifdef CONFIG_NET_BOARD_ETHADDR
+int board_gen_ethaddr(int dev_num, u8* mac_addr)
+{
+	if (!env_get("cpuid#")) {
+		int err = set_cpuid();
+		if (err)
+			return err;
+	}
+
+	return rockchip_gen_macaddr(dev_num, mac_addr);
 }
 #endif

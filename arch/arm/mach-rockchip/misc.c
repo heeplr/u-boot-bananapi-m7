@@ -21,14 +21,13 @@
 
 #include <asm/arch-rockchip/misc.h>
 
-int rockchip_setup_macaddr(void)
+int rockchip_gen_macaddr(int dev_num, u8 *mac_addr)
 {
 #if CONFIG_IS_ENABLED(HASH) && CONFIG_IS_ENABLED(SHA256)
 	int ret;
 	const char *cpuid = env_get("cpuid#");
 	u8 hash[SHA256_SUM_LEN];
 	int size = sizeof(hash);
-	u8 mac_addr[6];
 
 	/* Only generate a MAC address, if none is set in the environment */
 	if (env_get("ethaddr"))
@@ -51,12 +50,24 @@ int rockchip_setup_macaddr(void)
 	/* Make this a valid MAC address and set it */
 	mac_addr[0] &= 0xfe;  /* clear multicast bit */
 	mac_addr[0] |= 0x02;  /* set local assignment bit (IEEE802) */
-	eth_env_set_enetaddr("ethaddr", mac_addr);
 
-	/* Make a valid MAC address for ethernet1 */
-	mac_addr[5] ^= 0x01;
-	eth_env_set_enetaddr("eth1addr", mac_addr);
+	/* Make a valid MAC address for the given device number */
+	mac_addr[5] ^= dev_num;
 #endif
+	return 0;
+
+}
+
+int rockchip_setup_macaddr(void)
+{
+	u8 mac_addr[6];
+
+	if (rockchip_gen_macaddr(0, mac_addr) == 0)
+		eth_env_set_enetaddr("ethaddr", mac_addr);
+
+	if (rockchip_gen_macaddr(1, mac_addr) == 0)
+		eth_env_set_enetaddr("eth1addr", mac_addr);
+
 	return 0;
 }
 
