@@ -563,13 +563,22 @@ static int eth_post_probe(struct udevice *dev)
 	if (!eth_dev_get_mac_address(dev, pdata->enetaddr) ||
 	    !is_valid_ethaddr(pdata->enetaddr)) {
 		/* Check if the device has a MAC address in ROM */
+		int ret = -1;
 		if (eth_get_ops(dev)->read_rom_hwaddr) {
-			int ret;
-
 			ret = eth_get_ops(dev)->read_rom_hwaddr(dev);
 			if (!ret)
 				source = "ROM";
 		}
+#ifdef CONFIG_NET_BOARD_ETHADDR
+		if (ret) {
+			board_gen_ethaddr(dev_seq(dev), pdata->enetaddr);
+
+			if (!is_zero_ethaddr(pdata->enetaddr) &&
+			    is_valid_ethaddr(pdata->enetaddr)) {
+				source = "board";
+			}
+		}
+#endif
 	}
 
 	eth_env_get_enetaddr_by_index("eth", dev_seq(dev), env_enetaddr);

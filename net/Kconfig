@@ -53,6 +53,13 @@ config NET_RANDOM_ETHADDR
 	  generated. It will be saved to the appropriate environment variable,
 	  too.
 
+config NET_BOARD_ETHADDR
+	bool "Board specific ethaddr if unset"
+	help
+	  Allow a board function to set a specific Ethernet address that can
+	  be, e.g., based on the CPU ID. If set, this will be tried before
+	  setting a random address (if set).
+
 config NETCONSOLE
 	bool "NetConsole support"
 	help

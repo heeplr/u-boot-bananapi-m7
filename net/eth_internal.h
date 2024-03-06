@@ -32,4 +32,8 @@ void eth_current_changed(void);
 void eth_set_dev(struct udevice *dev);
 void eth_set_current_to_next(void);
 
+#ifdef CONFIG_NET_BOARD_ETHADDR
+int board_gen_ethaddr(int dev_num, u8* mac_addr);
+#endif
+
 #endif
