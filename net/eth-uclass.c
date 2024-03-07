@@ -559,8 +559,12 @@ static int eth_post_probe(struct udevice *dev)
 	priv->state = ETH_STATE_INIT;
 	priv->running = false;
 
+	/* Check if the driver has already set a valid MAC address */
+	if (is_valid_ethaddr(pdata->enetaddr)) {
+		source = "driver";
+	}
 	/* Check if the device has a valid MAC address in device tree */
-	if (!eth_dev_get_mac_address(dev, pdata->enetaddr) ||
+	else if (!eth_dev_get_mac_address(dev, pdata->enetaddr) ||
 	    !is_valid_ethaddr(pdata->enetaddr)) {
 		/* Check if the device has a MAC address in ROM */
 		int ret = -1;
