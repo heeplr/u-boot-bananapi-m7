@@ -607,8 +607,13 @@ static int eth_post_probe(struct udevice *dev)
 			       env_enetaddr);
 		}
 
-		/* Override the ROM MAC address */
-		memcpy(pdata->enetaddr, env_enetaddr, ARP_HLEN);
+		if (!IS_ENABLED(CONFIG_NET_PREFER_ROM_MAC_ADDR)) {
+			/* Override the ROM MAC address */
+			printf("Using address in environment\n");
+			memcpy(pdata->enetaddr, env_enetaddr, ARP_HLEN);
+		} else {
+			printf("Using address in %s\n", source);
+		}
 	} else if (is_valid_ethaddr(pdata->enetaddr)) {
 		eth_env_set_enetaddr_by_index("eth", dev_seq(dev),
 					      pdata->enetaddr);

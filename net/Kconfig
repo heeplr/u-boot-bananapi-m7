@@ -227,6 +227,13 @@ config SERVERIP
 	string "Value of the default 'serverip' value in the environment"
 	depends on USE_SERVERIP
 
+config NET_PREFER_ROM_MAC_ADDR
+	bool "Prefer using HW MAC address if environment address differs"
+	default n
+	help
+	  In case of a MAC address mismatch between the environment and the HW,
+	  prefer using the HW address.
+
 config PROT_TCP
 	bool "TCP stack"
 	help
