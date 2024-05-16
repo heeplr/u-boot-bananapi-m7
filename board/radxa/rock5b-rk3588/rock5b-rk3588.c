@@ -50,6 +50,9 @@ int rock5b_add_reserved_memory_fdt_nodes(void *new_blob)
 
 int ft_board_setup(void *blob, struct bd_info *bd)
 {
+#ifdef CONFIG_MISC_INIT_R
+	fdt_status_okay_by_compatible(blob, "fcs,fusb302");
+#endif
 	return rock5b_add_reserved_memory_fdt_nodes(blob);
 }
 #endif
