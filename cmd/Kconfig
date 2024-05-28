@@ -203,6 +203,12 @@ config CMD_REGINFO
 	help
 	  Register dump
 
+config CMD_TCPM
+	bool "tcpm"
+	depends on TYPEC_TCPM
+	help
+	  Show voltage and current negotiated by TCPM.
+
 config CMD_TLV_EEPROM
 	bool "tlv_eeprom"
 	depends on I2C_EEPROM
