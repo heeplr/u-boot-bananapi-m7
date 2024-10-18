@@ -2229,6 +2229,17 @@ static int tcpm_port_init(struct udevice *dev)
 	return 0;
 }
 
+static inline void tcpm_poll_one_event(struct udevice *dev)
+{
+	const struct dm_tcpm_ops *drvops = dev_get_driver_ops(dev);
+	struct tcpm_port *port = dev_get_uclass_plat(dev);
+
+	drvops->poll_event(dev);
+	port->poll_event_cnt++;
+	udelay(500);
+	tcpm_check_and_run_delayed_work(dev);
+}
+
 static void tcpm_poll_event(struct udevice *dev)
 {
 	const struct dm_tcpm_ops *drvops = dev_get_driver_ops(dev);
@@ -2242,15 +2253,25 @@ static void tcpm_poll_event(struct udevice *dev)
 		    (port->state == SNK_READY || port->state == SRC_READY))
 			break;
 
-		drvops->poll_event(dev);
-		port->poll_event_cnt++;
-		udelay(500);
-		tcpm_check_and_run_delayed_work(dev);
+		tcpm_poll_one_event(dev);
 	}
 
-	if (port->state != SNK_READY && port->state != SRC_READY)
+	/*
+	 * Some power-supplies send GetSinkCap shortly after they are ready.
+	 * If they do not receive a response after a few retries they will issue
+	 * a soft-reset followed by a hard reset, which kills the board power.
+	 * Let's poll for 50ms after reaching the ready state to check if the
+	 * power-supply wants something from us.
+	 */
+	if (port->state == SNK_READY) {
+		port->poll_event_cnt = 0;
+
+		while (port->poll_event_cnt < 100)
+			tcpm_poll_one_event(dev);
+	} else {
 		dev_warn(dev, "TCPM: exit in state %s\n",
 			 tcpm_states[port->state]);
+	}
 
 	/*
 	 * At this time, call the callback function of the respective pd chip
