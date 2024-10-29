@@ -1711,6 +1711,8 @@ static void run_state_machine(struct udevice *dev)
 
 	/* Hard_Reset states */
 	case HARD_RESET_SEND:
+		if (!port->self_powered && port->port_type == TYPEC_PORT_SNK)
+			dev_err(dev, "Initiating hard-reset, which might result in machine power-loss.\n");
 		tcpm_pd_transmit(dev, TCPC_TX_HARD_RESET, NULL);
 		tcpm_set_state(dev, HARD_RESET_START, 0);
 		port->wait_dr_swap_message = false;
