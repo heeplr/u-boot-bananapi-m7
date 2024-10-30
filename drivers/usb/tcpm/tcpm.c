@@ -833,6 +833,28 @@ static void tcpm_pd_ctrl_request(struct udevice *dev,
 	}
 }
 
+static void tcpm_recover_data_role_mismatch(struct udevice *dev)
+{
+	struct tcpm_port *port = dev_get_uclass_plat(dev);
+
+	dev_err(dev, "TCPM: data role mismatch, initiating error recovery\n");
+	if (port->self_powered) {
+		tcpm_set_state(dev, ERROR_RECOVERY, 0);
+		return;
+	}
+
+	/*
+	 * The error recovery will not help for devices, which are not
+	 * self-powered because the error recovery avoids killing the board
+	 * power. Since this can happen early on sending
+	 * a DR_SWAP request is not sensible. Instead let's change our own
+	 * data role. It can be swapped back once USB-PD reached the ready
+	 * state.
+	 */
+	tcpm_set_roles(dev, true, port->pwr_role,
+		       port->data_role == TYPEC_HOST ? TYPEC_DEVICE : TYPEC_HOST);
+}
+
 static void tcpm_pd_rx_handler(struct udevice *dev,
 			       const struct pd_message *msg)
 {
@@ -867,9 +889,11 @@ static void tcpm_pd_rx_handler(struct udevice *dev,
 		remote_is_host = !!(le16_to_cpu(msg->header) & PD_HEADER_DATA_ROLE);
 		local_is_host = port->data_role == TYPEC_HOST;
 		if (remote_is_host == local_is_host) {
-			dev_err(dev, "TCPM: data role mismatch, initiating error recovery\n");
-			tcpm_set_state(dev, ERROR_RECOVERY, 0);
-		} else {
+			tcpm_recover_data_role_mismatch(dev);
+			local_is_host = port->data_role == TYPEC_HOST;
+		}
+
+		if (remote_is_host != local_is_host) {
 			if (cnt)
 				tcpm_pd_data_request(dev, msg);
 			else
